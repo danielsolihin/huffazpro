@@ -1,0 +1,618 @@
+.dashboardWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 2.5rem;
+  font-family: 'Inter', sans-serif;
+  color: #1e293b;
+}
+
+/* =========================================
+   HEADER DASHBOARD
+========================================= */
+.topHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerTitle {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.headerSubtitle {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0.25rem 0 0 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.headerActionBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.headerActionBtn:hover {
+  background-color: #f8fafc;
+  color: #0062ff;
+  border-color: #cbd5e1;
+}
+
+.avatarMini {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+  margin-left: 0.4rem;
+}
+
+/* =========================================
+   4 KAD STATISTIK ATAS
+========================================= */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+.statCard {
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 18px;
+  padding: 1.25rem 1.4rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.04);
+}
+
+.statCardTop {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.statIconBox {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background-color: #0062ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(0, 98, 255, 0.25);
+}
+
+.statIconCyan {
+  background-color: #0284c7;
+  box-shadow: 0 6px 14px rgba(2, 132, 199, 0.25);
+}
+
+.statMetaTitle {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0;
+  font-weight: 600;
+}
+
+.statValue {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0.1rem 0 0 0;
+  line-height: 1;
+}
+
+.statDivider {
+  height: 1px;
+  background-color: #f1f5f9;
+  width: 100%;
+}
+
+.statFootRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.statHighlight {
+  color: #0062ff;
+  font-weight: 700;
+}
+
+/* =========================================
+   ASAS CARTA
+========================================= */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1.65fr 1.35fr; 
+  gap: 1.25rem;
+}
+
+.chartCard {
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+}
+
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.chartHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chartBadgeIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background-color: #eff6ff;
+  color: #0062ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chartTitle {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0 0 0.2rem 0;
+  font-weight: 600;
+}
+
+.selectDropdown {
+  padding: 0.45rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  outline: none;
+  cursor: pointer;
+}
+
+/* =========================================
+   GAYA BAHARU: STACKED DOTS CHART (TANPA AI)
+========================================= */
+.dotChartLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.chartInfoPanel {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-left: 1rem;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.dotGreen { background-color: #0ea5e9; } 
+.dotPurple { background-color: #8b5cf6; } 
+
+.svgChartContainer {
+  width: 100%;
+  position: relative;
+  height: 250px;
+  padding-right: 1rem;
+}
+
+.chartTooltip {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  font-size: 0.8rem;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease, left 0.2s ease;
+  transform: translate(-50%, -100%);
+  min-width: 120px;
+  margin-top: -15px;
+}
+
+.chartTooltip.show {
+  opacity: 1;
+}
+
+.tooltipRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.tooltipVal {
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.yAxisHighlight {
+  background-color: #8b5cf6;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.xAxisHighlight {
+  background-color: #8b5cf6;
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.hoverColGroup {
+  cursor: pointer;
+}
+
+.hoverColTarget {
+  fill: transparent;
+}
+
+.hoverGuideline {
+  stroke: #c4b5fd;
+  stroke-width: 1.5px;
+  stroke-dasharray: 4 4;
+  pointer-events: none;
+}
+
+/* =========================================
+   BAR CHART COLUMNS (SESI MENGULANG)
+========================================= */
+.barChartWrapper {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 220px;
+  padding: 1.5rem 0.5rem 0.5rem 0.5rem;
+  gap: 0.8rem;
+}
+
+.barCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+  cursor: pointer;
+}
+
+.barTrack {
+  width: 100%;
+  max-width: 44px;
+  background-color: #f1f5f9;
+  border-radius: 24px;
+  height: 180px;
+  display: flex;
+  align-items: flex-end;
+  position: relative;
+  overflow: hidden;
+}
+
+.barFill {
+  width: 100%;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #93c5fd 0%, #dbeafe 100%);
+  transition: height 0.6s ease, background 0.2s ease;
+}
+
+.barFillActive {
+  background: linear-gradient(180deg, #0062ff 0%, #3b82f6 100%) !important;
+  box-shadow: 0 6px 14px rgba(0, 98, 255, 0.3);
+}
+
+.barCol:hover .barFill {
+  background: linear-gradient(180deg, #3b82f6 0%, #60a5fa 100%);
+}
+
+.barLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.barTooltipTag {
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease, top 0.2s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.barTooltipTag::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px 4px 0;
+  border-style: solid;
+  border-color: #1e293b transparent transparent transparent;
+}
+
+.barCol:hover .barTooltipTag,
+.barFillActive + .barTooltipTag {
+  opacity: 1;
+  top: -42px;
+}
+
+/* =========================================
+   BARIS BAWAH: DUA SENARAI
+========================================= */
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 1.6fr;
+  gap: 1.25rem;
+}
+
+.listCard {
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+}
+
+.listCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.listHeaderTitle {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.seeAllLink {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0062ff;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.tableList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.tasmikRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.8rem;
+  border-radius: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.tasmikRow:hover {
+  background-color: #f8fafc;
+}
+
+.tasmikUserGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.tasmikAvatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.tasmikUserName {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.tasmikSub {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0.15rem 0 0 0;
+}
+
+.tasmikRightGroup {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.tasmikScoreCol {
+  text-align: right;
+}
+
+.tasmikScoreTitle {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin: 0;
+  font-weight: 600;
+}
+
+.tasmikScoreValue {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0.1rem 0 0 0;
+}
+
+.actionBtnRound {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.actionBtnActive {
+  background-color: #0062ff !important;
+  color: #ffffff !important;
+  border-color: #0062ff !important;
+  box-shadow: 0 4px 10px rgba(0, 98, 255, 0.25);
+}
+
+.moduleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.moduleRow:hover {
+  background-color: #f8fafc;
+}
+
+.moduleLeftGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.moduleThumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  background-color: #0f172a;
+}
+
+.moduleTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.moduleMeta {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0.15rem 0 0 0;
+}
+
+.modulePill {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.8rem;
+  border-radius: 20px;
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.modulePillBlue {
+  background-color: #0062ff;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 98, 255, 0.25);
+}
+
+/* =========================================
+   MEDIA QUERIES (RESPONSIVE)
+========================================= */
+@media (max-width: 1200px) {
+  .statsGrid { grid-template-columns: repeat(2, 1fr); }
+  .chartsGrid { grid-template-columns: 1fr; }
+  .bottomGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .statsGrid { grid-template-columns: 1fr; }
+}

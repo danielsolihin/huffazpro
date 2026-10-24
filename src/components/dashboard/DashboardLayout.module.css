@@ -1,0 +1,184 @@
+.layoutWrapper {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f4f7fe; /* Latar belakang kelabu-biru lembut (Edaca Style) */
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 270px;
+  background-color: #ffffff;
+  border-right: 1px solid #eef2f6;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 1.5rem 1.25rem;
+  z-index: 40;
+}
+
+.logoSection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2.5rem;
+  padding: 0 0.5rem;
+}
+
+.logoGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logoIcon {
+  width: 32px;
+  height: 32px;
+  background-color: #0062ff; /* Biru terang Edaca */
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoText {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1e293b;
+  letter-spacing: -0.5px;
+}
+
+.collapseBtn {
+  background: #f1f5f9;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.navMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-radius: 10px; /* Bentuk Pill Edaca */
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.navLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.navArrow {
+  color: #cbd5e1;
+}
+
+.navLink:hover {
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+/* KOTAK BIRU AKTIF EDACA */
+.activeNav {
+  background-color: #0062ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0, 98, 255, 0.25);
+}
+
+.navDivider {
+  height: 1px;
+  background-color: #e2e8f0;
+  margin: 1rem 0;
+}
+
+/* MAIN CONTENT & TOPBAR */
+.mainWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2rem 2.5rem 1rem 2.5rem;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+
+.pageSubtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.iconGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.iconBtn {
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.iconBtn:hover {
+  background: #f1f5f9;
+  color: #0062ff;
+}
+
+.topAvatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  cursor: pointer;
+}
+
+.contentArea {
+  flex: 1;
+  padding: 1rem 2.5rem 2.5rem 2.5rem;
+  max-width: 1400px;
+}

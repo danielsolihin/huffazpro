@@ -1,0 +1,57 @@
+.container { display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 2.5rem; font-family: 'Inter', sans-serif; }
+
+/* KAD HEADER */
+.headerCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 1.5rem 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem;}
+.titleRow { display: flex; align-items: center; gap: 0.75rem; }
+.iconBox { background-color: #eff6ff; color: #0062ff; width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.mainTitle { font-size: 1.35rem; font-weight: 800; color: #1e293b; margin: 0; }
+.subtitle { font-size: 0.9rem; color: #64748b; margin: 0; }
+
+/* SUSUN ATUR UTAMA (Menu Kiri & Borang Kanan) */
+.layoutWrapper { display: flex; gap: 1.5rem; align-items: flex-start; }
+
+/* MENU SISI KIRI */
+.sideNav { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 1rem; width: 280px; display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); flex-shrink: 0;}
+.navItem { display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; background: transparent; text-align: left; width: 100%; }
+.navItemActive { background-color: #f8fafc; color: #0062ff; }
+.navItemInactive { color: #64748b; }
+.navItemInactive:hover { background-color: #f8fafc; color: #1e293b; }
+
+/* KAD KANDUNGAN KANAN */
+.contentCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 2.5rem; flex: 1; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 2rem; position: relative; }
+.sectionHeader { display: flex; flex-direction: column; gap: 0.4rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 1.5rem; }
+.sectionTitle { font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0; }
+.sectionDesc { font-size: 0.9rem; color: #64748b; margin: 0; }
+
+/* SEKSYEN GAMBAR PROFIL */
+.profilePhotoSection { display: flex; align-items: center; gap: 1.5rem; }
+.avatarPreview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: border-color 0.3s; }
+.avatarPreview:hover { border-color: #0062ff; }
+.uploadBtnWrap { position: relative; overflow: hidden; display: inline-block; }
+.fileInput { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
+.uploadBtn { display: flex; align-items: center; gap: 0.5rem; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 0.6rem 1.2rem; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.uploadBtnWrap:hover .uploadBtn { background-color: #e2e8f0; color: #0f172a; }
+
+/* GRID BORANG MAKLUMAT */
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.inputGroup { display: flex; flex-direction: column; gap: 0.4rem; }
+.inputLabel { font-size: 0.85rem; font-weight: 700; color: #475569; }
+.textInput { padding: 0.8rem 1rem; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 0.95rem; font-weight: 600; color: #1e293b; outline: none; background-color: #ffffff; transition: all 0.2s; }
+.textInput:focus { border-color: #0062ff; box-shadow: 0 0 0 3px rgba(0, 98, 255, 0.1); }
+.textInput:disabled { background-color: #f1f5f9; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
+
+/* BUTANG SIMPAN & TOAST */
+.saveBtnWrap { display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+.saveBtn { background-color: #0062ff; color: white; border: none; padding: 0.8rem 2rem; border-radius: 10px; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s; }
+.saveBtn:hover { background-color: #0052cc; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 98, 255, 0.2); }
+.saveBtn:disabled { background-color: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.toastMsg { position: absolute; bottom: 2.5rem; left: 50%; transform: translateX(-50%); background-color: #10b981; color: white; padding: 0.8rem 1.5rem; border-radius: 30px; font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3); animation: fadeUp 0.3s ease-out; z-index: 10; }
+@keyframes fadeUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+@media (max-width: 900px) {
+  .layoutWrapper { flex-direction: column; }
+  .sideNav { width: 100%; flex-direction: row; overflow-x: auto; padding: 0.5rem; }
+  .navItem { padding: 0.6rem 1rem; white-space: nowrap; }
+  .formGrid { grid-template-columns: 1fr; }
+}

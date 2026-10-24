@@ -1,0 +1,158 @@
+.container { display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 2.5rem; font-family: 'Inter', sans-serif; }
+
+/* HEADER */
+.headerCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 1.5rem 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; }
+.titleWrap { display: flex; flex-direction: column; gap: 0.2rem; }
+.mainTitle { font-size: 1.35rem; font-weight: 700; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+.subtitle { font-size: 0.9rem; font-weight: 400; color: #64748b; margin: 0; }
+
+/* NOTIFIKASI TOAST */
+.toastSuccess { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 0.9rem 1.25rem; border-radius: 12px; display: flex; align-items: center; gap: 0.75rem; font-size: 0.88rem; font-weight: 500; animation: fadeIn 0.2s ease-out; }
+.toastError { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 0.9rem 1.25rem; border-radius: 12px; display: flex; align-items: center; gap: 0.75rem; font-size: 0.88rem; font-weight: 500; animation: fadeIn 0.2s ease-out; }
+
+/* SUSUN ATUR GRID */
+.layoutGrid { display: grid; grid-template-columns: 260px 1fr; gap: 1.75rem; align-items: start; }
+
+/* MENU SISI (SIDEBAR TABS) */
+.sidebarMenu { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 0.75rem 0; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; }
+.tabBtn { background: transparent; border: none; padding: 1rem 1.5rem; text-align: left; font-size: 0.9rem; font-weight: 500; color: #64748b; border-left: 3px solid transparent; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.8rem; }
+.tabBtn:hover { color: #0f172a; background: #f8fafc; }
+.activeTab { color: #0062ff !important; background: #eff6ff !important; border-left-color: #0062ff !important; font-weight: 600; }
+
+/* KAD KANDUNGAN UTAMA */
+.contentCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 2rem 2.25rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); animation: fadeIn 0.25s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.sectionTitle { font-size: 1.1rem; font-weight: 600; color: #0f172a; margin: 0 0 1.5rem 0; padding-bottom: 0.8rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+.sectionTitleText { display: flex; align-items: center; gap: 0.5rem; }
+
+/* ELEMEN BORANG */
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+.formGroup { display: flex; flex-direction: column; gap: 0.35rem; }
+.formGroupFull { grid-column: 1 / -1; }
+.label { font-size: 0.82rem; font-weight: 600; color: #475569; }
+.input { width: 100%; padding: 0.75rem 0.95rem; border-radius: 9px; border: 1px solid #cbd5e1; font-size: 0.88rem; color: #1e293b; background: #f8fafc; transition: all 0.2s; outline: none; font-family: inherit; }
+.input:focus { border-color: #0062ff; background: #ffffff; box-shadow: 0 0 0 3px #eff6ff; }
+.textarea { resize: vertical; min-height: 95px; line-height: 1.5; }
+
+/* FOTO PROFIL */
+.profileAvatarArea { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.75rem; }
+.avatarPreview { width: 85px; height: 85px; border-radius: 50%; object-fit: cover; border: 3px solid #eef2f6; box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
+.changePhotoBtn { background: #ffffff; border: 1px solid #cbd5e1; padding: 0.5rem 0.95rem; border-radius: 8px; font-size: 0.82rem; font-weight: 500; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 0.45rem; transition: 0.2s; }
+.changePhotoBtn:hover { background: #f8fafc; border-color: #94a3b8; }
+.hiddenInput { display: none; }
+
+/* KOTAK MUAT NAIK SIJIL */
+.uploadBox { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 2rem 1.5rem; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+.uploadBox:hover { border-color: #0062ff; background: #eff6ff; }
+.uploadTitle { font-weight: 600; color: #0f172a; margin: 0; font-size: 0.92rem; }
+.uploadDesc { font-size: 0.78rem; color: #64748b; margin: 0; }
+
+.fileList { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.25rem; }
+.fileItem { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.1rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; transition: 0.2s; }
+.fileItem:hover { border-color: #cbd5e1; }
+.fileInfo { display: flex; align-items: center; gap: 0.85rem; font-size: 0.85rem; font-weight: 500; color: #334155; }
+.fileMeta { display: flex; flex-direction: column; gap: 0.15rem; }
+.fileName { color: #0f172a; font-weight: 500; font-size: 0.85rem; }
+.fileSize { font-size: 0.75rem; color: #64748b; }
+.statusBadge { font-size: 0.7rem; font-weight: 600; color: #d97706; background: #fef3c7; padding: 0.15rem 0.5rem; border-radius: 5px; width: max-content; }
+.statusVerified { color: #059669; background: #ecfdf5; }
+
+.fileActionsGroup { display: flex; align-items: center; gap: 0.4rem; }
+.fileViewBtn { background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; padding: 0.35rem 0.65rem; border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; text-decoration: none; transition: 0.2s; }
+.fileViewBtn:hover { background: #e2e8f0; color: #0f172a; }
+.fileDeleteBtn { background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0.4rem; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+.fileDeleteBtn:hover { background: #fee2e2; }
+
+/* SENARAI TOGGLE NOTIFIKASI */
+.toggleList { display: flex; flex-direction: column; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.toggleItem { display: flex; justify-content: space-between; align-items: center; padding: 1.15rem 1.4rem; background: #ffffff; border-bottom: 1px solid #f1f5f9; }
+.toggleItem:last-child { border-bottom: none; }
+.toggleInfo { display: flex; flex-direction: column; gap: 0.2rem; }
+.toggleTitle { font-weight: 600; font-size: 0.9rem; color: #0f172a; margin: 0; }
+.toggleDesc { font-size: 0.78rem; color: #64748b; margin: 0; }
+
+.switch { position: relative; display: inline-block; width: 42px; height: 23px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 17px; width: 17px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+.switch input:checked + .slider { background-color: #10b981; }
+.switch input:checked + .slider:before { transform: translateX(19px); }
+
+/* FOOTER SIMPAN */
+.formActions { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.75rem; }
+.btnSave { background: #0062ff; color: #ffffff; border: none; padding: 0.75rem 1.6rem; border-radius: 9px; font-weight: 500; font-size: 0.88rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+.btnSave:hover { background: #004ecc; transform: translateY(-1px); }
+.btnSave:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* ========================================================
+   MODUL KEHADIRAN GURU (BY DAY, WEEK, MONTH, YEAR)
+======================================================== */
+.periodFilterBar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.periodButtonGroup { display: inline-flex; background: #f1f5f9; padding: 0.25rem; border-radius: 10px; border: 1px solid #e2e8f0; }
+.periodBtn { background: transparent; border: none; padding: 0.5rem 1.1rem; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s; }
+.periodBtnActive { background: #ffffff; color: #0062ff; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+
+.btnPrintAttendance { background: #0f172a; color: #ffffff; border: none; padding: 0.55rem 1.2rem; border-radius: 8px; font-size: 0.82rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: 0.2s; }
+.btnPrintAttendance:hover { background: #1e293b; }
+
+.attSummaryGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.attSummaryCard { background: #f8fafc; border: 1px solid #eef2f6; border-radius: 12px; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.attSummaryLabel { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin: 0; }
+.attSummaryVal { font-size: 1.35rem; font-weight: 700; color: #0f172a; margin: 0; }
+
+.attTableWrapper { width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.attTable { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+.attTable th { background: #f8fafc; padding: 0.9rem 1rem; font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+.attTable td { padding: 0.85rem 1rem; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.attTable tr:last-child td { border-bottom: none; }
+.attTable tr:hover { background: #fbfcfd; }
+
+.badgeHadir { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+.badgeLewat { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+.badgeCuti { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+
+/* KAWASAN KHAS CETAKAN (SLIP KEHADIRAN RASMI GURU) */
+.printAttendanceSlip { display: none; }
+
+/* ========================================================
+   MEDIA PRINT
+======================================================== */
+@media print {
+  body * { visibility: hidden !important; }
+  .printAttendanceSlip, .printAttendanceSlip * { visibility: visible !important; }
+  .printAttendanceSlip {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    padding: 2rem !important;
+    box-sizing: border-box;
+  }
+
+  .slipHeader { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 1.5rem; margin-bottom: 1.5rem; }
+  .slipTitle { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0 0 0.3rem 0; text-transform: uppercase; }
+  .slipSub { font-size: 0.85rem; color: #475569; margin: 0; }
+  
+  .slipTeacherInfo { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.9rem; }
+  .slipTeacherInfo td { padding: 0.4rem 0; color: #0f172a; }
+
+  .slipTable { width: 100%; border-collapse: collapse; margin-bottom: 2rem; font-size: 0.85rem; }
+  .slipTable th, .slipTable td { border: 1px solid #cbd5e1; padding: 0.65rem 0.75rem; text-align: left; }
+  .slipTable th { background: #f8fafc; font-weight: 700; }
+
+  .slipSignatures { display: flex; justify-content: space-between; margin-top: 3.5rem; }
+  .signBox { width: 220px; border-top: 1px solid #0f172a; padding-top: 0.5rem; text-align: center; font-size: 0.85rem; font-weight: 600; color: #0f172a; }
+  .signRole { font-size: 0.75rem; font-weight: 400; color: #64748b; margin-top: 0.2rem; }
+}
+
+/* RESPONSIVE */
+@media (max-width: 860px) {
+  .layoutGrid { grid-template-columns: 1fr; }
+  .formGrid { grid-template-columns: 1fr; }
+  .sidebarMenu { flex-direction: row; overflow-x: auto; white-space: nowrap; border-radius: 12px; padding: 0; }
+  .tabBtn { padding: 0.9rem 1.1rem; border-left: none; border-bottom: 3px solid transparent; font-size: 0.85rem; }
+  .activeTab { border-left-color: transparent !important; border-bottom-color: #0062ff !important; }
+}

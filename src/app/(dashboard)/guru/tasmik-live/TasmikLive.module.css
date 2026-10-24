@@ -1,0 +1,169 @@
+.container { display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 2rem; font-family: 'Inter', sans-serif; height: calc(100vh - 100px); }
+
+/* HEADER LIVE BAR */
+.liveHeader { background: #1e293b; color: white; border-radius: 12px; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.liveTitleWrap { display: flex; align-items: center; gap: 1rem; }
+.liveBadge { background: #ef4444; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; gap: 0.4rem; animation: pulse 2s infinite; }
+.studentName { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.sessionInfo { font-size: 0.85rem; color: #94a3b8; }
+.timerText { font-family: monospace; font-size: 1.2rem; font-weight: 700; background: #0f172a; padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid #334155; }
+
+/* SUSUN ATUR GRID (KIRI: VIDEO + GRED | KANAN: MUSHAF) */
+.gridContainer { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; height: 100%; min-height: 0; }
+
+/* =========================================
+   KOLUM KIRI: STUDIO VIDEO & PENILAIAN
+========================================= */
+.leftPanel { display: flex; flex-direction: column; gap: 1rem; height: 100%; }
+
+/* Skrin Video */
+.videoWrapper { position: relative; background: #0f172a; border-radius: 16px; overflow: hidden; height: 280px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); flex-shrink: 0; }
+.mainVideo { width: 100%; height: 100%; object-fit: cover; opacity: 0.85; }
+.pipVideo { position: absolute; top: 1rem; right: 1rem; width: 80px; height: 100px; background: #334155; border-radius: 8px; border: 2px solid #ffffff; object-fit: cover; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+.videoOverlayText { position: absolute; top: 1rem; left: 1rem; background: rgba(0,0,0,0.5); color: white; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; backdrop-filter: blur(4px); }
+
+/* Kawalan Video (Butang Mute/Kamera) */
+.videoControls { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.6rem; background: rgba(15, 23, 42, 0.7); padding: 0.5rem; border-radius: 30px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); }
+.ctrlBtn { width: 40px; height: 40px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; background: #334155; transition: all 0.2s; }
+.ctrlBtn:hover { background: #475569; transform: scale(1.05); }
+.ctrlBtn.danger { background: #ef4444; }
+.ctrlBtn.danger:hover { background: #dc2626; }
+
+/* Panel Penggredan Kiri */
+.evalCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 1rem; flex: 1; overflow-y: auto; }
+.sectionTitle { font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+
+.gradeGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.gradeBtn { padding: 0.6rem; border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff; font-weight: 700; font-size: 0.8rem; color: #475569; cursor: pointer; transition: all 0.2s; }
+.gradeBtn:hover { background: #f8fafc; border-color: #cbd5e1; }
+.gradeBtn.active { background: #10b981; color: #ffffff; border-color: #10b981; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
+.gradeBtn.mumtaz { grid-column: span 2; }
+
+.submitBtn { background: #0f172a; color: #ffffff; border: none; padding: 0.8rem; border-radius: 8px; font-weight: 800; font-size: 0.9rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s; margin-top: auto; }
+.submitBtn:hover { background: #1e293b; transform: translateY(-2px); }
+
+/* =========================================
+   KOLUM KANAN: MUSHAF INTERAKTIF 
+========================================= */
+.rightPanel { display: flex; flex-direction: column; gap: 1rem; height: 100%; overflow: hidden; }
+.mushafCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 1rem; height: 100%; overflow-y: auto; }
+.mushafHeader { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 1rem; }
+.mushafTitle { font-size: 1.1rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+
+.highlightInstruction { background: #ecfdf5; color: #059669; padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem; border: 1px dashed #34d399; }
+
+.mushafPage { background-color: #fdfbf7; border: 1px solid #e2e8f0; border-radius: 12px; padding: 2.5rem 2rem; box-shadow: inset 0 0 20px rgba(0,0,0,0.02); }
+.bismillah { font-family: 'Amiri Quran', serif; font-size: 1.8rem; text-align: center; color: #1e293b; margin-bottom: 2rem; }
+.quranTextContainer { font-family: 'Amiri Quran', serif; font-size: 1.7rem; line-height: 2.5; color: #1e293b; text-align: justify; text-align-last: center; direction: rtl; }
+
+.ayahSpan { cursor: pointer; transition: all 0.2s; position: relative; }
+.ayahSpan:hover { background-color: #f0fdf4; color: #059669; border-radius: 4px; }
+.ayahEnd { color: #d97706 !important; font-size: 1.4rem; margin: 0 0.4rem; user-select: none; }
+
+/* WARNA RALAT & LAFAZ JALALAH (Kekalkan seperti tadi) */
+:global(.lafazJalalah) { color: #dc2626; font-weight: bold; }
+:global(.errorTajwid) { background-color: #dbeafe !important; color: #1e40af !important; border-bottom: 2px dashed #2563eb !important; border-radius: 4px; padding: 0 4px; }
+:global(.errorKelancaran) { background-color: #fef3c7 !important; color: #92400e !important; border-bottom: 2px dashed #d97706 !important; border-radius: 4px; padding: 0 4px; }
+:global(.errorBaris) { background-color: #fee2e2 !important; color: #991b1b !important; border-bottom: 2px dashed #dc2626 !important; border-radius: 4px; padding: 0 4px; }
+:global(.errorMakhraj) { background-color: #f3e8ff !important; color: #5b21b6 !important; border-bottom: 2px dashed #7c3aed !important; border-radius: 4px; padding: 0 4px; }
+
+/* KAD RALAT KECIL DALAM PANEL KIRI */
+.errorMiniList { display: flex; flex-direction: column; gap: 0.4rem; max-height: 150px; overflow-y: auto; }
+.errorMiniItem { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.8rem; border-radius: 8px; border: 1px solid #e2e8f0; }
+.removeBtn { background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0.2rem; }
+
+/* MODAL / POPUP PILIH RALAT */
+.modalOverlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(2px); }
+.modalContent { background: #ffffff; width: 90%; max-width: 400px; border-radius: 16px; padding: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 1rem; }
+.errorTypeGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.typeBtn { padding: 0.8rem; border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; text-align: center; border: 1px solid; }
+
+.btnTajwid { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+.btnTajwid:hover { background: #dbeafe; border-color: #2563eb; }
+.btnKelancaran { border-color: #fde68a; background: #fffbeb; color: #b45309; }
+.btnKelancaran:hover { background: #fef3c7; border-color: #d97706; }
+.btnBaris { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+.btnBaris:hover { background: #fee2e2; border-color: #dc2626; }
+.btnMakhraj { border-color: #ddd6fe; background: #f5f3ff; color: #6d28d9; }
+.btnMakhraj:hover { background: #ede9fe; border-color: #7c3aed; }
+
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+@media (max-width: 1024px) { .gridContainer { grid-template-columns: 1fr; height: auto; } .mushafCard { height: 500px; } }
+/* =========================================
+   TAMBAHAN: FILTER BAR & PAGINATION (LIVE)
+========================================= */
+
+/* Bar Penapis (Filter Bar) */
+.filterBar {
+  display: flex;
+  gap: 1rem;
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.filterLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+}
+.filterSelect {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  color: #1e293b;
+  background: #ffffff;
+  outline: none;
+  cursor: pointer;
+  min-width: 120px;
+}
+.filterSelect:focus {
+  border-color: #10b981;
+}
+
+/* Navigasi Halaman (Seterusnya / Sebelumnya) */
+.paginationBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #e2e8f0;
+}
+.pageBtn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pageBtn:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+.pageBtn:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  cursor: not-allowed;
+}
+.pageIndicator {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}

@@ -1,0 +1,270 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Header & Carian */
+.searchCard {
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.headerTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.searchBar {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.inputLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.selectInput {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+  outline: none;
+  background-color: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.selectInput:focus {
+  border-color: #0062ff;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 98, 255, 0.1);
+}
+
+.searchBtn {
+  background-color: #0062ff;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  height: 44px;
+  transition: all 0.2s;
+}
+
+.searchBtn:hover {
+  background-color: #0052cc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 98, 255, 0.2);
+}
+
+/* Kad Paparan Asbab Nuzul */
+.contentCard {
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.ayahHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px dashed #e2e8f0;
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.surahNameGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.surahName {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0062ff;
+  margin: 0;
+}
+
+.badgeCategory {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0284c7;
+  background-color: #e0f2fe;
+  padding: 0.25rem 0.7rem;
+  border-radius: 20px;
+}
+
+.ayahMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ayahSource {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  background-color: #f1f5f9;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+}
+
+.badgeRiwayat {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #15803d;
+  background-color: #dcfce7;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+}
+
+.arabicText {
+  font-family: 'Amiri Quran', serif;
+  font-size: 2.4rem;
+  line-height: 2.3;
+  text-align: right;
+  color: #0f172a;
+  margin-bottom: 1.5rem;
+  direction: rtl;
+}
+
+.verseEnd {
+  color: #d97706;
+  margin: 0 0.5rem;
+  font-size: 0.85em;
+}
+
+.translationText {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #334155;
+  font-weight: 500;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 2rem;
+  font-style: italic;
+}
+
+/* Seksyen Penceritaan Asbab Nuzul */
+.storySection {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #8b5cf6;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.storyCard {
+  background-color: #faf5ff;
+  border: 1px solid #f3e8ff;
+  border-left: 5px solid #8b5cf6;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.storyTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #581c87;
+  margin: 0 0 0.75rem 0;
+}
+
+.storyParagraph {
+  font-size: 0.98rem;
+  line-height: 1.8;
+  color: #3b0764;
+  margin: 0 0 1rem 0;
+  text-align: justify;
+}
+
+.storyParagraph:last-child {
+  margin-bottom: 0;
+}
+
+.riwayatSourceText {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #7e22ce;
+  border-top: 1px dashed #e9d5ff;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hikmahBox {
+  background-color: #f0fdf4;
+  border-left: 4px solid #10b981;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0 14px 14px 0;
+}
+
+.hikmahTitle {
+  color: #047857;
+  font-size: 0.95rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hikmahDesc {
+  color: #065f46;
+  font-size: 0.88rem;
+  margin: 0;
+  line-height: 1.7;
+}
+
+@media (max-width: 768px) {
+  .searchBar { flex-direction: column; align-items: stretch; }
+  .searchBtn { justify-content: center; }
+  .arabicText { font-size: 1.9rem; line-height: 2; }
+  .contentCard { padding: 1.5rem; }
+}

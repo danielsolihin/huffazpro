@@ -1,0 +1,30 @@
+:root {
+  /* Palet Biru Modern */
+  --primary: #2563eb;
+  --primary-light: #eff6ff;
+  
+  /* Latar Belakang & Kartu */
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  
+  /* Teks */
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  
+  /* Gradasi Banner & Efek Kaca */
+  --hero-gradient: linear-gradient(135deg, #e0e7ff 0%, #fae8ff 50%, #ede9fe 100%);
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  
+  /* Status */
+  --success: #10b981;
+  --warning: #f59e0b;
+  
+  /* Radius & Bayangan Lembut */
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.03);
+  --transition: all 0.2s ease;
+}

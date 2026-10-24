@@ -1,0 +1,234 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.headerCard {
+  background: #ffffff;
+  padding: 1.5rem 2rem;
+  border-radius: 16px;
+  border: 1px solid #eef2f6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.mainTitle {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.btnPrint {
+  background: #0062ff;
+  color: #ffffff;
+  border: none;
+  padding: 0.7rem 1.4rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 98, 255, 0.25);
+  transition: all 0.2s;
+}
+
+.btnPrint:disabled {
+  background: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.emptyState {
+  background: #ffffff;
+  padding: 4rem 2rem;
+  border-radius: 16px;
+  border: 1px dashed #cbd5e1;
+  text-align: center;
+}
+
+.emptyState h3 { margin: 0 0 0.5rem 0; color: #1e293b; }
+.emptyState p { margin: 0; color: #64748b; }
+
+/* KERTAS A4 LAPORAN (PRINTABLE ZONE) */
+.reportPaper {
+  background: #ffffff;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 3rem;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  font-family: 'Times New Roman', Times, serif;
+  color: #0f172a;
+}
+
+.schoolHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 3px double #0f172a;
+  margin-bottom: 2rem;
+}
+
+.schoolLogo {
+  width: 70px;
+  height: 70px;
+  background: #059669;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schoolName {
+  margin: 0 0 0.4rem 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.schoolAddress {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.reportTitleBox {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.reportTitle {
+  margin: 0 0 0.2rem 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.reportMonth {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem 2rem;
+  margin-bottom: 2rem;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.infoRow { display: flex; font-size: 0.9rem; }
+.infoLabel { width: 120px; font-weight: 700; }
+.infoColon { width: 20px; text-align: center; }
+.infoValue { flex: 1; border-bottom: 1px dotted #94a3b8; }
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 2px solid #0f172a;
+  margin-bottom: 2rem;
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: center;
+}
+
+.summaryBox {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.summaryBox:not(:last-child) { border-right: 1px solid #cbd5e1; }
+
+.summaryLabel { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #475569; }
+.summaryValue { font-size: 1.25rem; font-weight: 800; }
+
+.sectionHeader {
+  border-bottom: 1px solid #0f172a;
+  margin-bottom: 1rem;
+}
+.sectionHeader h4 { margin: 0 0 0.5rem 0; font-size: 1.05rem; }
+
+.reportTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, Helvetica, sans-serif;
+  margin-bottom: 2rem;
+}
+
+.reportTable th, .reportTable td {
+  border: 1px solid #cbd5e1;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.reportTable th {
+  background: #f1f5f9;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.reportTable td { font-size: 0.9rem; }
+
+.commentBox {
+  border: 1px dashed #94a3b8;
+  padding: 1.5rem;
+  background: #f8fafc;
+  font-style: italic;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.signatureSection {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4rem;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.signatureBox { width: 40%; text-align: center; }
+
+.signLine {
+  border-top: 1px solid #0f172a;
+  padding-top: 0.5rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.signRole, .signDate {
+  margin: 0.2rem 0;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.footerNote {
+  margin-top: 3rem;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-family: Arial, Helvetica, sans-serif;
+}

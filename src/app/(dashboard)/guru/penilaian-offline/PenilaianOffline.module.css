@@ -1,0 +1,240 @@
+.container { display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 2.5rem; font-family: 'Inter', sans-serif; }
+
+/* KAD HEADER */
+.headerCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 1.5rem 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; }
+.headerInfo { display: flex; align-items: center; gap: 1rem; }
+.studentAvatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid #10b981; }
+.titleWrap { display: flex; flex-direction: column; gap: 0.2rem; }
+.mainTitle { font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0; }
+.subtitle { font-size: 0.9rem; font-weight: 600; color: #64748b; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+
+/* SUSUN ATUR GRID (KIRI: MUSHAF, KANAN: BORANG) */
+.gridContainer { display: grid; grid-template-columns: 1.8fr 1.2fr; gap: 1.5rem; align-items: start; }
+
+/* KIRI: MUSHAF DIGITAL */
+.mushafCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 1.5rem; height: calc(100vh - 220px); overflow-y: auto; }
+.mushafHeader { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 1rem; }
+.mushafTitle { font-size: 1.1rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+.helperText { font-size: 0.8rem; color: #64748b; font-weight: 600; background: #f8fafc; padding: 0.4rem 0.8rem; border-radius: 20px; }
+
+/* REKA BENTUK MUSHAF BAHARU (SAMA SEPERTI PELAJAR) */
+.mushafPage {
+  background-color: #fdfbf7; /* Warna latar kertas kuning cair (kertas quran) */
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
+  display: flex;
+  flex-direction: column;
+}
+
+.bismillah {
+  font-family: 'Amiri Quran', serif;
+  font-size: 1.8rem;
+  text-align: center;
+  color: #1e293b;
+  margin-bottom: 2rem;
+}
+
+.quranTextContainer {
+  font-family: 'Amiri Quran', serif;
+  font-size: 1.8rem;
+  line-height: 2.5;
+  color: #1e293b;
+  text-align: justify;
+  text-align-last: center; /* Baris akhir di tengah */
+  direction: rtl; /* Teks bermula dari kanan ke kiri */
+}
+
+.ayahSpan { 
+  cursor: pointer; 
+  transition: all 0.2s; 
+  position: relative; 
+}
+.ayahSpan:hover { 
+  background-color: #f0fdf4; 
+  color: #059669; 
+  border-radius: 4px;
+}
+.ayahSpan.hasError { 
+  background-color: #fef2f2; 
+  color: #dc2626; 
+  text-decoration: underline; 
+  text-decoration-style: dashed; 
+  border-radius: 4px;
+}
+
+.ayahEnd { 
+  color: #94a3b8; 
+  font-size: 1.4rem; 
+  margin: 0 0.4rem; 
+  user-select: none; 
+}
+
+/* (Pastikan kod lain seperti .evalCard kekal seperti asal) */
+/* KANAN: PANEL PENILAIAN */
+.evalCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 1.8rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 1.5rem; }
+
+/* Senarai Ralat */
+.sectionTitle { font-size: 1rem; font-weight: 800; color: #0f172a; margin: 0 0 0.8rem 0; display: flex; align-items: center; gap: 0.5rem; }
+.errorList { display: flex; flex-direction: column; gap: 0.5rem; min-height: 80px; }
+.emptyError { font-size: 0.85rem; color: #94a3b8; font-style: italic; text-align: center; padding: 1rem; background: #f8fafc; border-radius: 10px; }
+.errorItem { display: flex; justify-content: space-between; align-items: center; background: #fef2f2; border: 1px solid #fecaca; padding: 0.6rem 1rem; border-radius: 10px; }
+.errorInfo { display: flex; flex-direction: column; }
+.errorAyah { font-size: 0.75rem; font-weight: 800; color: #dc2626; }
+.errorType { font-size: 0.85rem; font-weight: 600; color: #7f1d1d; }
+.removeBtn { background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0.2rem; border-radius: 5px; }
+.removeBtn:hover { background: #fecaca; }
+
+/* Pemilihan Gred */
+.gradeGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.gradeBtn { padding: 0.8rem; border-radius: 10px; border: 1px solid #e2e8f0; background: #ffffff; font-weight: 700; font-size: 0.9rem; color: #475569; cursor: pointer; transition: all 0.2s; }
+.gradeBtn:hover { background: #f8fafc; border-color: #cbd5e1; }
+.gradeBtn.active { background: #10b981; color: #ffffff; border-color: #10b981; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
+.gradeBtn.mumtaz { grid-column: span 2; }
+
+/* Catatan & Hantar */
+.noteArea { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0.8rem; font-family: 'Inter', sans-serif; font-size: 0.9rem; resize: vertical; min-height: 80px; outline: none; }
+.noteArea:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
+.submitBtn { background: #0f172a; color: #ffffff; border: none; padding: 1rem; border-radius: 10px; font-weight: 800; font-size: 1rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s; margin-top: 0.5rem; }
+.submitBtn:hover { background: #1e293b; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(15, 23, 42, 0.2); }
+.submitBtn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* MODAL / POPUP PILIH RALAT */
+.modalOverlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(2px); }
+.modalContent { background: #ffffff; width: 90%; max-width: 400px; border-radius: 16px; padding: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 1rem; }
+.modalTitle { font-size: 1.1rem; font-weight: 800; color: #0f172a; margin: 0; }
+.errorTypeGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.typeBtn { padding: 0.8rem; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; font-weight: 700; font-size: 0.85rem; color: #334155; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; text-align: center; }
+.typeBtn:hover { background: #eff6ff; border-color: #0062ff; color: #0062ff; }
+
+@media (max-width: 1024px) {
+  .gridContainer { grid-template-columns: 1fr; }
+  .mushafCard { height: 400px; }
+}
+/* =========================================
+   TAMBAHAN BAHARU: FILTER & PEWARNAAN MUSHAF
+========================================= */
+
+/* Bar Penapis (Filter Bar) */
+.filterBar {
+  display: flex;
+  gap: 1rem;
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.filterLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+}
+.filterSelect {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  color: #1e293b;
+  background: #ffffff;
+  outline: none;
+  cursor: pointer;
+}
+.filterSelect:focus {
+  border-color: #10b981;
+}
+
+/* Teks Arahan Highlight */
+.highlightInstruction {
+  background: #ecfdf5;
+  color: #059669;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px dashed #34d399;
+}
+
+/* Pewarnaan Khas (Nombor & Lafaz Jalalah) */
+.ayahEnd { 
+  color: #d97706 !important; /* Warna Emas/Coklat Keemasan */
+  font-size: 1.4rem; 
+  margin: 0 0.4rem; 
+  user-select: none; 
+}
+
+/* Anda perlu guna :global sebab kelas ini disuntik melalui dangerouslySetInnerHTML */
+:global(.lafazJalalah) {
+  color: #dc2626; /* Merah untuk Lafaz Allah */
+  font-weight: bold;
+}
+
+:global(.errorHighlight) {
+  background-color: #fef08a; /* Latar kuning highlight */
+  color: #b91c1c; /* Teks merah gelap */
+  border-bottom: 2px dashed #ef4444; /* Garis bawah putus-putus merah */
+  border-radius: 4px;
+  padding: 0 2px;
+}
+/* ========================================================
+   WARNA-WARNA KHAS MENGIKUT JENIS KESALAHAN
+======================================================== */
+
+/* 1. Tajwid / Dengung (Biru) */
+:global(.errorTajwid) {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  border-bottom: 2px dashed #2563eb !important;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* 2. Kelancaran Sangkut (Jingga / Amber) */
+:global(.errorKelancaran) {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border-bottom: 2px dashed #d97706 !important;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* 3. Salah Baris (Merah) */
+:global(.errorBaris) {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  border-bottom: 2px dashed #dc2626 !important;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* 4. Makhraj Huruf (Ungu) */
+:global(.errorMakhraj) {
+  background-color: #f3e8ff !important;
+  color: #5b21b6 !important;
+  border-bottom: 2px dashed #7c3aed !important;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* Butang Modal Ralat Bertema Warna */
+.btnTajwid { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+.btnTajwid:hover { background: #dbeafe; border-color: #2563eb; }
+
+.btnKelancaran { border-color: #fde68a; background: #fffbeb; color: #b45309; }
+.btnKelancaran:hover { background: #fef3c7; border-color: #d97706; }
+
+.btnBaris { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+.btnBaris:hover { background: #fee2e2; border-color: #dc2626; }
+
+.btnMakhraj { border-color: #ddd6fe; background: #f5f3ff; color: #6d28d9; }
+.btnMakhraj:hover { background: #ede9fe; border-color: #7c3aed; }

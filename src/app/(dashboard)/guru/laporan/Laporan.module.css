@@ -1,0 +1,206 @@
+.container { display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 2.5rem; font-family: 'Inter', sans-serif; }
+
+/* ========================================================
+   1. KAD HEADER & TINDAKAN UTAMA
+======================================================== */
+.headerCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 1.5rem 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.titleWrap { display: flex; flex-direction: column; gap: 0.2rem; }
+.mainTitle { font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+.subtitle { font-size: 0.9rem; font-weight: 600; color: #64748b; margin: 0; }
+.headerActions { display: flex; gap: 0.75rem; }
+.exportBtn { padding: 0.6rem 1.2rem; border-radius: 10px; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s; border: none; }
+.btnPdf { background: #fee2e2; color: #dc2626; }
+.btnPdf:hover { background: #fecaca; }
+.btnExcel { background: #dcfce7; color: #166534; }
+.btnExcel:hover { background: #bbf7d0; }
+
+/* ========================================================
+   2. KAD STATISTIK
+======================================================== */
+.statsGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+.statCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); display: flex; align-items: center; gap: 1.2rem; transition: transform 0.2s; }
+.statCard:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05); }
+.statIcon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.statInfo { display: flex; flex-direction: column; gap: 0.2rem; }
+.statValue { font-size: 1.6rem; font-weight: 800; color: #0f172a; margin: 0; line-height: 1; }
+.statLabel { font-size: 13px; font-weight: 600; color: #64748b; margin: 0; }
+
+/* ========================================================
+   3. BAR PENAPIS (FILTER BAR)
+======================================================== */
+.filterBar { display: flex; gap: 1rem; background: #ffffff; padding: 1rem 1.5rem; border-radius: 16px; border: 1px solid #eef2f6; align-items: center; flex-wrap: wrap; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); }
+.searchBox { flex: 1; min-width: 250px; display: flex; align-items: center; gap: 0.5rem; background: #f8fafc; padding: 0.6rem 1rem; border-radius: 10px; border: 1px solid #e2e8f0; }
+.searchInput { border: none; background: transparent; outline: none; width: 100%; font-size: 13px; color: #1e293b; }
+.filterSelect { padding: 0.6rem 1rem; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13px; color: #475569; background: #f8fafc; outline: none; cursor: pointer; }
+.printAllBtn { background: #0f172a; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 10px; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s; margin-left: auto; }
+.printAllBtn:hover { background: #1e293b; transform: translateY(-2px); }
+
+/* ========================================================
+   4. SISTEM TABS (PAPARAN HALAMAN UTAMA)
+======================================================== */
+.tabContainer { display: flex; gap: 2rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; padding-top: 0.5rem; }
+.tabBtn { background: transparent; border: none; padding: 0.8rem 0.5rem; font-weight: 700; font-size: 0.95rem; color: #64748b; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+.tabBtn:hover { color: #0f172a; }
+.activeTab { color: #0062ff !important; border-bottom-color: #0062ff !important; }
+
+/* Warna Peratusan Kehadiran */
+.pctGood { color: #059669; font-weight: 800; font-size: 14px; }
+.pctWarn { color: #d97706; font-weight: 800; font-size: 14px; }
+.pctBad { color: #dc2626; font-weight: 800; font-size: 14px; }
+
+/* ========================================================
+   5. JADUAL DATA UTAMA PELAJAR
+======================================================== */
+.tableCard { background: #ffffff; border: 1px solid #eef2f6; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); }
+.tableWrapper { width: 100%; overflow-x: auto; }
+.dataTable { width: 100%; border-collapse: collapse; text-align: center; }
+
+.dataTable th { background: #f8fafc; padding: 1.1rem 0.8rem; font-size: 12px; font-weight: 700; color: #475569; border-bottom: 1px solid #e2e8f0; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; }
+.dataTable th:nth-child(3) { text-align: left; }
+
+.dataTable td { padding: 0.9rem 0.8rem; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 400; color: #334155; vertical-align: middle; }
+.dataTable td:nth-child(3) { text-align: left; }
+.dataTable tr:hover { background: #fbfcfd; }
+
+.studentInfo { display: flex; flex-direction: column; gap: 0.15rem; }
+.studentName { color: #0f172a; margin: 0; font-size: 13px; font-weight: 500; }
+.studentClass { font-size: 11px; color: #64748b; margin: 0; font-weight: 400; }
+
+/* BADGES (Kehadiran & Gred) */
+.badge, .issueTag, .safeTag { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 13px; font-weight: 400; line-height: 1.2; white-space: nowrap; }
+.bgOnline { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; min-width: 90px; }
+.bgFizikal { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; min-width: 90px; }
+.bgAbsent { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; min-width: 90px; }
+
+.gredMumtaz { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; min-width: 95px; }
+.gredJayyid { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; min-width: 95px; }
+.gredMaqbul { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; min-width: 95px; }
+.gredRasib { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; min-width: 95px; }
+
+.issueTag { background: #fef2f2; color: #dc2626; border: 1px dashed #fecaca; }
+.safeTag { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+/* BUTANG TINDAKAN KANAN SEKALI (Profil, Rekod, Cetak) */
+.actionGroup { display: flex; gap: 0.4rem; justify-content: center; align-items: center; }
+.actionBtn { background: transparent; border: 1px solid #cbd5e1; color: #475569; padding: 0.4rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+.actionBtn:hover { background: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
+.actionBtn.primary { color: #0062ff; border-color: #bfdbfe; background: #eff6ff; }
+.actionBtn.primary:hover { background: #0062ff; color: white; border-color: #0062ff; }
+
+/* ========================================================
+   6. MODAL DIALOG AM (PROFIL & SEJARAH)
+======================================================== */
+.modalOverlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.65); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(3px); padding: 1.5rem; }
+.modalContent { background: #ffffff; width: 100%; max-width: 650px; max-height: 90vh; border-radius: 18px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden; animation: popIn 0.2s ease-out; }
+.modalContentLarge { max-width: 820px; }
+
+@keyframes popIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+
+.modalHeader { padding: 1.25rem 1.75rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+.modalProfile { display: flex; gap: 1rem; align-items: center; }
+.modalAvatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.modalName { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0 0 0.2rem 0; }
+.modalMatrik { font-size: 13px; color: #64748b; margin: 0; }
+.closeBtn { background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 0.3rem; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.closeBtn:hover { color: #ef4444; background: #fee2e2; }
+
+.modalBody { padding: 1.75rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* Profil Modal Info */
+.profileGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.profileInfoBox { background: #f8fafc; border: 1px solid #eef2f6; border-radius: 12px; padding: 0.9rem 1.1rem; }
+.profileInfoLabel { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0 0 0.3rem 0; letter-spacing: 0.5px; }
+.profileInfoValue { font-size: 14px; color: #0f172a; font-weight: 500; margin: 0; }
+
+/* Status Hafazan Terkini (Timeline) */
+.statusSection { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 1rem 1.25rem; border-radius: 12px; }
+.statusLabel { font-size: 11px; color: #065f46; font-weight: 700; margin: 0 0 0.2rem 0; text-transform: uppercase; }
+.statusValue { font-size: 1rem; color: #064e3b; font-weight: 600; margin: 0; }
+
+.historyList { display: flex; flex-direction: column; gap: 1rem; border-left: 2px solid #e2e8f0; margin-left: 0.5rem; padding-left: 1.5rem; position: relative; }
+.historyItem { position: relative; }
+.historyItem::before { content: ''; position: absolute; left: -1.8rem; top: 0.25rem; width: 10px; height: 10px; border-radius: 50%; background: #0062ff; border: 2px solid #ffffff; box-shadow: 0 0 0 2px #bfdbfe; }
+.historyDate { font-size: 12px; color: #64748b; font-weight: 600; margin: 0 0 0.3rem 0; }
+.historyDetail { background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.9rem 1.1rem; border-radius: 10px; }
+.historyTitle { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 0.4rem 0; display: flex; justify-content: space-between; align-items: center; }
+.historyNote { font-size: 12px; color: #475569; margin: 0; line-height: 1.5; }
+
+.modalFooter { padding: 1rem 1.75rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.75rem; background: #ffffff; }
+
+/* Filter Pilihan Cetakan Modal */
+.printOptionBar { display: flex; gap: 1rem; background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 1.5rem; align-items: center; }
+.printOptionLabel { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
+
+/* ========================================================
+   7. KAD LAPORAN (PRINTABLE REPORT CARD) - REKA BENTUK RASMI
+======================================================== */
+.reportSlipWrapper { background: #f1f5f9; padding: 1.5rem; border-radius: 12px; }
+.reportSlip { background: #ffffff; border: 1px solid #cbd5e1; padding: 2.5rem; display: flex; flex-direction: column; gap: 1.5rem; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+
+/* Bingkai Corak Sijil */
+.reportSlip::before { content: ''; position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px; border: 2px solid #0f172a; pointer-events: none; }
+.reportSlip::after { content: ''; position: absolute; top: 12px; left: 12px; right: 12px; bottom: 12px; border: 1px solid #94a3b8; pointer-events: none; }
+
+.slipSchoolHeader { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 1.5rem; margin-top: 1rem; position: relative; z-index: 10; }
+/* Logo */
+.slipLogo { width: 60px; height: 60px; background-color: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.8rem auto; }
+.slipSchoolName { font-size: 1.4rem; font-weight: 900; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+.slipSchoolSub { font-size: 0.8rem; color: #475569; margin: 0.4rem 0 0 0; font-weight: 500; }
+.slipTitle { font-size: 1.1rem; font-weight: 800; color: #1e293b; text-transform: uppercase; margin-top: 1.2rem; background: #f8fafc; display: inline-block; padding: 0.4rem 1.5rem; border-radius: 20px; border: 1px solid #e2e8f0; }
+
+/* Jadual Maklumat Pelajar */
+.studentInfoTable { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; z-index: 10; position: relative; }
+.studentInfoTable td { padding: 0.5rem 0; color: #1e293b; vertical-align: top; }
+.studentInfoTable td strong { color: #0f172a; display: inline-block; min-width: 130px; }
+
+/* Jadual Keputusan / Gred */
+.slipTable { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.85rem; z-index: 10; position: relative; }
+.slipTable th, .slipTable td { border: 1px solid #cbd5e1; padding: 0.75rem 1rem; text-align: left; color: #1e293b; }
+.slipTable th { background: #f8fafc; font-weight: 800; color: #0f172a; text-transform: uppercase; font-size: 0.8rem; }
+.slipTable tbody tr:nth-child(even) { background-color: #fbfcfd; }
+
+/* Ruangan Laporan Tahunan (Rumusan) */
+.yearlySummaryBox { background: #f8fafc; border: 1px solid #cbd5e1; padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; text-align: center; margin-top: 1rem; }
+.yearlyStatLabel { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0 0 0.4rem 0; }
+.yearlyStatValue { font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0; }
+.yearlyNotes { border: 1px solid #cbd5e1; padding: 1.5rem; margin-top: 1rem; min-height: 100px; position: relative; }
+.yearlyNotesLabel { position: absolute; top: -10px; left: 15px; background: white; padding: 0 10px; font-size: 0.8rem; font-weight: 700; color: #475569; }
+
+/* Footer & Tanda Tangan */
+.slipFooterSign { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 1.5rem; font-size: 0.85rem; color: #1e293b; z-index: 10; position: relative; }
+.signLine { border-top: 1px solid #0f172a; padding-top: 0.5rem; width: 200px; font-weight: 700; margin-top: 4rem; }
+.signRole { color: #64748b; font-size: 0.75rem; margin: 0; }
+
+/* ========================================================
+   8. PRINT STYLES (@media print) - TETAPAN MENCETAK
+======================================================== */
+@media print {
+  body * { visibility: hidden !important; }
+  .printableContainer, .printableContainer * { visibility: visible !important; }
+  
+  .printableContainer { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; overflow: visible !important; }
+  
+  .modalOverlay { background: transparent !important; position: absolute !important; }
+
+  .modalContent, .modalContentLarge, .modalBody, .reportSlipWrapper { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; height: auto !important; max-height: none !important; overflow: visible !important; padding: 0 !important; background: white !important; }
+  
+  .reportSlip { page-break-after: always !important; break-after: page !important; border: none !important; padding: 1rem !important; margin: 0 !important; box-shadow: none !important; }
+
+  /* Kekalkan bingkai sijil sewaktu cetak */
+  .reportSlip::before { border: 2px solid #000 !important; }
+  .reportSlip::after { border: 1px solid #555 !important; }
+
+  .noPrint { display: none !important; }
+}
+
+/* ========================================================
+   9. RESPONSIVE MOBILE
+======================================================== */
+@media (max-width: 768px) {
+  .headerCard { flex-direction: column; align-items: flex-start; }
+  .filterBar { flex-direction: column; align-items: stretch; }
+  .searchBox { width: 100%; }
+  .printAllBtn { margin-left: 0; width: 100%; justify-content: center; }
+  .profileGrid, .yearlySummaryBox { grid-template-columns: 1fr; }
+  .slipFooterSign { flex-direction: column; gap: 2rem; }
+}
