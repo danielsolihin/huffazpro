@@ -480,13 +480,14 @@ export default function PenilaianOfflinePage() {
         ? `Terdapat ${recordedErrors.length} kesalahan dikesan. ${notes ? 'Catatan: ' + notes : ''}`
         : `Tahniah! Tiada kesalahan dikesan. ${notes ? 'Catatan: ' + notes : ''}`;
 
-      // 1. Simpan ke jadual evaluations
+      // 1. Simpan ke jadual evaluations (DITAMBAH SIMPANAN HALAMAN)
       const { error: evalError } = await supabase
         .from('evaluations')
         .insert([{
           student_id: selectedStudent,
           teacher_id: teacherId,
           surah: surahName,
+          halaman: String(selectedPage), // Simpan nombor halaman ke DB
           gred: selectedGrade,
           catatan: combinedNotes,
           type: 'Bersemuka',
@@ -821,6 +822,11 @@ export default function PenilaianOfflinePage() {
               <div>
                 <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 700, textTransform: 'uppercase' }}>Surah Disemak</span>
                 <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.9rem', fontWeight: 700, color: '#1e3a8a' }}>{rekodTerakhir.surah}</p>
+              </div>
+              <div>
+                {/* PENAMBAHAN LABEL HALAMAN */}
+                <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 700, textTransform: 'uppercase' }}>Halaman</span>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.9rem', fontWeight: 700, color: '#1e3a8a' }}>{rekodTerakhir.halaman && rekodTerakhir.halaman !== 'Penuh' ? rekodTerakhir.halaman : 'Penuh'}</p>
               </div>
               <div>
                 <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 700, textTransform: 'uppercase' }}>Gred Keputusan</span>

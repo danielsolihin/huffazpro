@@ -240,10 +240,11 @@ export default function NotifikasiMurajaahPage() {
               });
             }
 
+            // PEMBETULAN PENJANAAN ID: Menambah parameter errIndex bagi mengelakkan kunci penduaan (duplicate keys)
             if (formattedErrors.length > 0 && !record.gred?.includes('Mumtaz')) {
-              formattedErrors.forEach(err => {
+              formattedErrors.forEach((err, errIndex) => {
                 combinedChecklist.push({
-                  id: `chk-${record.id}-${err.ayahNum}`,
+                  id: `chk-${record.id}-${err.ayahNum}-${errIndex}`, // <-- ID Unik dijamin di sini
                   title: `Baiki Bacaan ${record.surah} (Ayat ${err.ayahNum})`,
                   desc: `Fokus Ralat: ${err.type}`,
                   isDone: false
@@ -338,7 +339,10 @@ export default function NotifikasiMurajaahPage() {
             studentItems.forEach((st: ChecklistItem) => { if (!combinedChecklist.some(c => c.id === st.id)) combinedChecklist.push(st); });
           } catch {}
         }
-        setChecklist(combinedChecklist);
+        
+        // Memastikan tiada kunci pendua yang datang dari data localStorage yang korup
+        const uniqueChecklist = Array.from(new Map(combinedChecklist.map(item => [item.id, item])).values());
+        setChecklist(uniqueChecklist);
 
       } catch (error) {
         console.error("Gagal menarik data notifikasi:", error);

@@ -60,9 +60,6 @@ export default function TasmikLivePage() {
   const [pageMeta, setPageMeta] = useState({ surahName: '', juz: '' });
 
   const [selectedSurahId, setSelectedSurahId] = useState<number>(2);
-  const [selectedPage, setSelectedPage] = useState<number | 'Semua'>('Semua');
-  const [availablePages, setAvailablePages] = useState<number[]>([]);
-
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [fontSizeBase, setFontSizeBase] = useState(1.65);
   const [showTranslation, setShowTranslation] = useState(false);
@@ -87,7 +84,7 @@ export default function TasmikLivePage() {
 
           const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
           if (profile) {
-            setStudentName(profile.full_name);
+            setStudentName(profile.full_name || 'Azizi Osman');
             
             const { data: lastEval } = await supabase
               .from('evaluations')
@@ -107,7 +104,87 @@ export default function TasmikLivePage() {
     fetchStudentData();
   }, []);
 
-  // 2. DENGAR PANGGILAN LIVE DARI GURU SECARA MASA-NYATA (SUPABASE TULEN)
+  // 1b. PANCARKAN ISYARAT BILIK MENUNGGU SECARA BERKALA & DENGAR PANGGILAN GURU
+  useEffect(() => {
+    if (!studentId || isLiveCall) return;
+
+    let heartbeatTimer: NodeJS.Timeout;
+    const waitingChannel = supabase.channel('tasmik_waiting_room');
+
+    const sendWaitingSignal = () => {
+      try {
+        const timeNow = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        waitingChannel.send({
+          type: 'broadcast',
+          event: 'student_waiting',
+          payload: {
+            studentId,
+            studentName,
+            time: timeNow
+          }
+        });
+      } catch (err) {
+        console.warn('Gagal menghantar broadcast bilik menunggu:', err);
+      }
+    };
+
+    waitingChannel.on('broadcast', { event: 'call_started' }, (payload) => {
+      const data = payload?.payload;
+      if (data && data.studentId === studentId) {
+        setIsLiveCall(true);
+        quitTrainingMode();
+        setShowTranslation(false);
+      }
+    }).subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        sendWaitingSignal();
+        heartbeatTimer = setInterval(sendWaitingSignal, 3500);
+      }
+    });
+
+    const recordWaitingNotification = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('assigned_teacher_id')
+          .eq('id', studentId)
+          .maybeSingle();
+
+        let targetGuruId = profile?.assigned_teacher_id;
+        if (!targetGuruId) {
+          const { data: guru } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('role', 'Guru')
+            .limit(1)
+            .maybeSingle();
+          targetGuruId = guru?.id;
+        }
+
+        if (targetGuruId) {
+          await supabase.from('notifications').insert([{
+            user_id: targetGuruId,
+            sender_id: studentId,
+            type: 'student_waiting',
+            title: `Pelajar Menunggu: ${studentName}`,
+            message: `Pelajar ${studentName} kini berada di bilik menunggu tasmik online.`,
+            is_read: false
+          }]);
+        }
+      } catch (err) {
+        console.warn('Gagal merekod notifikasi bilik menunggu:', err);
+      }
+    };
+
+    recordWaitingNotification();
+
+    return () => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      supabase.removeChannel(waitingChannel);
+    };
+  }, [studentId, studentName, isLiveCall]);
+
+  // 2. DENGAR PANGGILAN LIVE DARI GURU SECARA MASA-NYATA (SUPABASE)
   useEffect(() => {
     if (!studentId) return;
 
@@ -140,12 +217,12 @@ export default function TasmikLivePage() {
     };
 
     checkIncomingCall();
-    callChecker = setInterval(checkIncomingCall, 3000);
+    callChecker = setInterval(checkIncomingCall, 2500);
 
     return () => clearInterval(callChecker);
   }, [studentId]);
 
-  // 3. RAKAM KEHADIRAN (HADIR ONLINE) & NOTIFIKASI GURU APABILA LIVE BERMULA
+  // 3. RAKAM KEHADIRAN (HADIR ONLINE) APABILA PANGGILAN BERMULA
   useEffect(() => {
     if (isLiveCall && studentId) {
       const handleLiveStart = async () => {
@@ -174,41 +251,59 @@ export default function TasmikLivePage() {
               await supabase.from('attendance').insert([attData]);
             }
           }
-
-          const { data: guru } = await supabase.from('profiles').select('id').eq('role', 'Guru').limit(1).maybeSingle();
-          if (guru) {
-            await supabase.from('notifications').insert([{
-              user_id: guru.id,
-              sender_id: studentId,
-              type: 'info',
-              title: 'Pelajar Telah Masuk Bilik',
-              message: `${studentName} kini berada di dalam Bilik Tasmik Live.`
-            }]);
-          }
         } catch (err) {
-          console.error("Gagal menyelaraskan sesi live:", err);
+          console.error("Gagal merekod kehadiran sesi live:", err);
         }
       };
 
       handleLiveStart();
     }
-  }, [isLiveCall, studentId, studentName]);
+  }, [isLiveCall, studentId]);
 
-  // 4. AUTO-SYNC: BUKA MUSHAF MENGIKUT REKOD TERAKHIR
+  // 4. AUTO-SYNC: BUKA MUSHAF MENGIKUT REKOD TERAKHIR (DINAMIK)
   useEffect(() => {
-    if (rekodTerakhir && surahsList.length > 0) {
-      const found = surahsList.find(s => s.englishName === rekodTerakhir.surah || s.name === rekodTerakhir.surah);
-      if (found) setSelectedSurahId(found.number);
-      setSelectedPage('Semua'); 
-    }
+    const syncLastRecord = async () => {
+      if (rekodTerakhir && surahsList.length > 0) {
+        const found = surahsList.find(s => s.englishName === rekodTerakhir.surah || s.name === rekodTerakhir.surah);
+        if (found) {
+          setSelectedSurahId(found.number);
+          
+          if (rekodTerakhir.halaman && rekodTerakhir.halaman !== 'Penuh') {
+            setCurrentPage(Number(rekodTerakhir.halaman));
+          } else {
+             try {
+               const res = await fetch(`https://api.alquran.cloud/v1/surah/${found.number}`);
+               const data = await res.json();
+               if (data.data && data.data.ayahs) {
+                 setCurrentPage(data.data.ayahs[0].page);
+               }
+             } catch (error) {
+               console.error("Gagal menyegerakkan muka surat:", error);
+             }
+          }
+        }
+      }
+    };
+    syncLastRecord();
   }, [rekodTerakhir, surahsList]);
 
+  // 5. SENARAI SURAH (DENGAN PEMBETULAN EJAAN)
   useEffect(() => { 
     fetch('https://api.alquran.cloud/v1/surah')
       .then(res => res.json())
-      .then(data => { if (data.data) setSurahsList(data.data); }); 
+      .then(data => { 
+        if (data.data) {
+          const formattedSurahs = data.data.map((s: any) => {
+            if (s.englishName === 'Aal-i-Imraan') s.englishName = 'Ali-Imran';
+            if (s.englishName === 'Al-Faatiha') s.englishName = 'Al-Fatihah';
+            return s;
+          });
+          setSurahsList(formattedSurahs);
+        }
+      }); 
   }, []);
 
+  // 6. AMBIL AYAT MUSHAF DAN SELARASKAN DROPDOWN SURAH
   useEffect(() => {
     const fetchQuranPage = async () => {
       setLoading(true);
@@ -220,12 +315,33 @@ export default function TasmikLivePage() {
         ]);
         const quranData = await quranRes.json();
         const transData = await transRes.json();
+        
         if (quranData.data && transData.data) {
-          const combinedAyahs = quranData.data.ayahs.map((ayah: any, index: number) => ({ ...ayah, translation: transData.data.ayahs[index].text }));
+          const combinedAyahs = quranData.data.ayahs.map((ayah: any, index: number) => ({ 
+            ...ayah, 
+            translation: transData.data.ayahs[index].text 
+          }));
           setAyahs(combinedAyahs);
-          const uniqueSurahs = [...new Set(quranData.data.ayahs.map((a: any) => a.surah.englishName))].join(' & ');
+          
+          // Betulkan ejaan untuk paparan Info
+          const surahNames = quranData.data.ayahs.map((a: any) => {
+            let name = a.surah.englishName;
+            if (name === 'Aal-i-Imraan') name = 'Ali-Imran';
+            if (name === 'Al-Faatiha') name = 'Al-Fatihah';
+            return name;
+          });
+          const uniqueSurahs = [...new Set(surahNames)].join(' & ');
           setPageMeta({ surahName: uniqueSurahs, juz: quranData.data.ayahs[0].juz });
-          if (combinedAyahs.length > 0) { setLoopStart(combinedAyahs[0].number); setLoopEnd(combinedAyahs[Math.min(4, combinedAyahs.length - 1)].number); }
+
+          // SELARAS DROPDOWN SURAH DENGAN HALAMAN SEMASA JIKA PENGGUNA NAVIGASI SECARA MANUAL
+          if (quranData.data.ayahs.length > 0) {
+            setSelectedSurahId(quranData.data.ayahs[0].surah.number);
+          }
+
+          if (combinedAyahs.length > 0) { 
+            setLoopStart(combinedAyahs[0].number); 
+            setLoopEnd(combinedAyahs[Math.min(4, combinedAyahs.length - 1)].number); 
+          }
         }
       } catch (error) {} finally { setLoading(false); }
     };
@@ -363,15 +479,22 @@ export default function TasmikLivePage() {
   const switchTurn = () => { setSparingTurn(prev => prev === 'me' ? 'partner' : 'me'); };
   const switchRole = () => { setMyRole(prev => prev === 'penghafaz' ? 'penyemak' : 'penghafaz'); };
 
+  // APABILA USER PILIH SURAH DARI DROPDOWN, TUKAR HALAMAN KEPADA MUKA SURAT PERTAMA SURAH TERSEBUT
   const handleSurahChange = async (e: any) => {
-    const surahId = e.target.value;
+    const surahId = Number(e.target.value);
     if (!surahId) return;
+    
+    setSelectedSurahId(surahId);
     setLoading(true);
     try {
       const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}`);
       const data = await res.json();
-      if (data.data && data.data.ayahs) setCurrentPage(data.data.ayahs[0].page);
-    } catch (error) {}
+      if (data.data && data.data.ayahs) {
+        setCurrentPage(data.data.ayahs[0].page);
+      }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const formatAyahTextNormal = (text: string) => {
@@ -671,7 +794,7 @@ export default function TasmikLivePage() {
           ) : (
             <div className={styles.videoCard} style={{ padding: 0, overflow: 'hidden', background: '#0f172a', position: 'relative', display: 'flex', flexDirection: 'column', height: '240px', minHeight: '400px', maxHeight: '420px', borderRadius: '16px' }}>
               
-              {/* KOMPONEN LIVEKIT: PANGGILAN VIDEO DIPENDEKKAN & KEMAS (240px) */}
+              {/* KOMPONEN LIVEKIT */}
               <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                 <LiveKitRoomView 
                   roomName="HuffazPro-Tasmik-Bilik-04" 
@@ -683,13 +806,46 @@ export default function TasmikLivePage() {
             </div>
           )}
 
+          {/* KAD STATUS BILIK MENUNGGU & SESI */}
           <div className={styles.statusCard}>
-            <div><h4 className={styles.statusTitle}>Maklumat Sesi</h4><p className={styles.statusText}>{pageMeta.surahName || 'Memuatkan...'}</p></div>
-            <div className={styles.timeBadge}>
-              <div className={isLiveCall ? styles.liveIndicator : ''} style={!isLiveCall ? {backgroundColor: '#94a3b8', width:8, height:8, borderRadius:'50%'} : {}}></div>
-              {isLiveCall ? 'Sedang Langsung' : 'Bersedia'}
+            <div style={{ width: '100%' }}>
+              <h4 className={styles.statusTitle}>Maklumat Sesi</h4>
+              <p className={styles.statusText}>
+                {rekodTerakhir ? (
+                  <>
+                    <strong style={{ color: '#0f172a' }}>Surah:</strong> {rekodTerakhir.surah} | <strong style={{ color: '#0f172a' }}>Halaman:</strong> {rekodTerakhir.halaman || 'Penuh'} | <strong style={{ color: '#0f172a' }}>Gred:</strong> <span style={{ color: '#059669', fontWeight: 700 }}>{rekodTerakhir.gred}</span>
+                  </>
+                ) : (
+                  pageMeta.surahName || 'Memuatkan...'
+                )}
+              </p>
+            </div>
+            <div className={styles.timeBadge} style={{ flexShrink: 0 }}>
+              <div 
+                className={isLiveCall ? styles.liveIndicator : ''} 
+                style={!isLiveCall ? {backgroundColor: '#10b981', width: 8, height: 8, borderRadius: '50%'} : {}}
+              ></div>
+              {isLiveCall ? 'Sedang Langsung' : 'Di Bilik Menunggu'}
             </div>
           </div>
+
+          {!isLiveCall && (
+            <div style={{
+              background: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: '10px',
+              padding: '0.65rem 0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#065f46',
+              fontSize: '0.78rem',
+              fontWeight: 600
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+              <span>Anda berada di <strong>Bilik Menunggu</strong>. Guru anda sedang dimaklumkan.</span>
+            </div>
+          )}
         </div>
 
         {/* BAHAGIAN KANAN: MUSHAF PREMIUM */}
@@ -701,7 +857,7 @@ export default function TasmikLivePage() {
                 <div className={styles.iconBox}><BookOpen size={18} color={isDarkMode ? "#60a5fa" : "#0062ff"} /></div>
                 <div>
                   <h3 className={styles.surahTitle}>{loading ? 'Memuatkan...' : `Surah ${pageMeta.surahName}`}</h3>
-                  <p className={styles.surahSubtitle}>{loading ? '-' : `Juzuk ${pageMeta.juz} • Muka Surat ${currentPage}`}</p>
+                  <p className={styles.surahSubtitle}>{loading ? '-' : `Juzuk ${pageMeta.juz} | Muka Surat ${currentPage}`}</p>
                 </div>
               </div>
               <div className={styles.quranActions}>
@@ -755,17 +911,14 @@ export default function TasmikLivePage() {
               <div className={isLiveCall ? styles.quranContentBlurred : ''} style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
                 
                 <div className={styles.quranFilterBar}>
-                  <select className={styles.filterSelect} onChange={handleSurahChange} disabled={isLiveCall}>
+                  <select className={styles.filterSelect} value={selectedSurahId} onChange={handleSurahChange} disabled={isLiveCall}>
                     <option value="">Pilih Surah...</option>
                     {surahsList.map((surah) => (<option key={surah.number} value={surah.number}>{surah.number}. {surah.englishName}</option>))}
                   </select>
                   <select className={styles.filterSelect} value={currentPage} onChange={(e) => setCurrentPage(Number(e.target.value))} disabled={isLiveCall}>
                     {[...Array(604)].map((_, i) => (<option key={i + 1} value={i + 1}>Halaman {i + 1}</option>))}
                   </select>
-                  <select className={styles.filterSelect} value={selectedAyahId || ""} onChange={(e) => setSelectedAyahId(Number(e.target.value))} disabled={isLiveCall}>
-                    <option value="">Pilih Ayat</option>
-                    {ayahs.map((ayah) => (<option key={ayah.number} value={ayah.number}>Ayat {ayah.numberInSurah}</option>))}
-                  </select>
+                  {/* MEDAN "PILIH AYAT" TELAH DIBUANG DARI SINI */}
                   <button className={styles.searchBtn} disabled={isLiveCall}><Search size={16} /> Cari</button>
                 </div>
 
@@ -779,12 +932,6 @@ export default function TasmikLivePage() {
                         let isBismillah = false;
                         const bismillahStr = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
 
-                        // =========================================================================
-                        // HUKUM BASMALLAH MUSHAF UTHMANI:
-                        // 1. Surah Al-Fatihah (1): Basmallah ialah Ayat 1 (isBismillah = false, dibaca terus dengan ﴿1﴾).
-                        // 2. Surah 2 hingga 114 (Kecuali Surah 9 At-Tawbah): Basmallah dipaparkan di kepala surah sahaja (isBismillah = true), dan teks Basmallah dibuang dari Ayat 1.
-                        // 3. Surah 9 (At-Tawbah): Tiada Basmallah (isBismillah = false).
-                        // =========================================================================
                         if (ayah.numberInSurah === 1 && ayah.surah.number !== 1 && ayah.surah.number !== 9) {
                           isBismillah = true;
                           const basmalahPattern = /^\s*ب[\u064B-\u065F\u0670]*س[\u064B-\u065F\u0670]*م[\u064B-\u065F\u0670]*\s*[ٱاإآ][\u064B-\u065F\u0670]*ل[\u064B-\u065F\u0670]*ل[\u064B-\u065F\u0670]*ه[\u064B-\u065F\u0670]*\s*[ٱاإآ][\u064B-\u065F\u0670]*ل[\u064B-\u065F\u0670]*ر[\u064B-\u065F\u0670]*ح[\u064B-\u065F\u0670]*م[\u064B-\u065F\u0670\u0640]*ن[\u064B-\u065F\u0670]*\s*[ٱاإآ][\u064B-\u065F\u0670]*ل[\u064B-\u065F\u0670]*ر[\u064B-\u065F\u0670]*ح[\u064B-\u065F\u0670]*ي[\u064B-\u065F\u0670]*م[\u064B-\u065F\u0670]*/u;
