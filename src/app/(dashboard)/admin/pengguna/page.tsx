@@ -417,7 +417,7 @@ export default function AdminPenggunaPage() {
   if (!mounted) return <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}></div>;
 
   return (
-    <DashboardAdminLayout userName="Ketua Pentadbir" userRole="Admin">
+    <DashboardAdminLayout>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', maxWidth: '1200px', margin: '0 auto' }}>
         
         {/* HEADER */}

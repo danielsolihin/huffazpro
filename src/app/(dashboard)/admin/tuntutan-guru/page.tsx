@@ -86,7 +86,7 @@ export default function AdminTuntutanGuruPage() {
   if (!mounted) return null;
 
   return (
-    <DashboardAdminLayout userName="Ketua Pentadbir" userRole="Admin">
+    <DashboardAdminLayout>
       <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem', paddingBottom: '3rem' }}>
         
         {/* HEADER */}
