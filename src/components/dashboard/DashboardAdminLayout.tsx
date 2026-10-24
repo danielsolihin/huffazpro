@@ -12,6 +12,8 @@ import {
 
 interface DashboardAdminLayoutProps {
   children: React.ReactNode;
+  userName?: string;
+  userRole?: string;
 }
 
 // Fungsi Helper untuk menukar PTG/PG/PAGI/PETANG kepada AM/PM
@@ -57,7 +59,7 @@ const formatTimeAMPM = (timeInput: any): string => {
   return String(timeInput);
 };
 
-export default function DashboardAdminLayout({ children }: DashboardAdminLayoutProps) {
+export default function DashboardAdminLayout({ children, userName, userRole }: DashboardAdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -66,7 +68,7 @@ export default function DashboardAdminLayout({ children }: DashboardAdminLayoutP
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   
   // STATE DINAMIK DARI SUPABASE
-  const [adminName, setAdminName] = useState('Pentadbir Utama');
+  const [adminName, setAdminName] = useState(userName || 'Pentadbir Utama');
   const [adminAvatar, setAdminAvatar] = useState('');
   const [loginTime, setLoginTime] = useState('');
   const [institutionName, setInstitutionName] = useState('HuffazPro');
