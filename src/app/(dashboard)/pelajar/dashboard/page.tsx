@@ -115,7 +115,7 @@ export default function PelajarDashboardPage() {
         // 5. CARTA BAR (6 BULAN LEPAS)
         const monthNamesShort = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
         const currentMonthNum = new Date().getMonth();
-        const last6Months = [];
+        const last6Months: { index: number; name: string; count: number }[] = [];
         
         for (let i = 5; i >= 0; i--) {
           let mIndex = (currentMonthNum - i + 12) % 12;
@@ -246,7 +246,7 @@ export default function PelajarDashboardPage() {
       </div>
     </DashboardLayout>
   );
-}
+ }
 
   return (
     <DashboardLayout userName={studentName} userRole="Pelajar">

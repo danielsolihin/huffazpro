@@ -650,15 +650,15 @@ export default function PenilaianOfflinePage() {
                 </span>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: '#166534', background: '#dcfce7', padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid #bbf7d0', fontWeight: 600 }}>
-                  <Clock size={14} /> Waktu: <strong>{todayAttendance.time_in}</strong>
+                  <Clock size={14} /> Waktu: <strong>{todayAttendance?.time_in}</strong>
                 </div>
 
                 <div style={{ fontSize: '0.82rem', color: '#14532d', background: '#dcfce7', padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid #bbf7d0', fontWeight: 600 }}>
-                  Pengesah: <strong>{todayAttendance.verified_by || teacherName}</strong>
+                  Pengesah: <strong>{todayAttendance?.verified_by || teacherName}</strong>
                 </div>
 
                 <span style={{ fontSize: '0.75rem', color: '#15803d', fontStyle: 'italic' }}>
-                  ({todayAttendance.remarks || 'Tasmik Bersemuka'})
+                  ({todayAttendance?.remarks || 'Tasmik Bersemuka'})
                 </span>
               </div>
 
