@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import LiveKitRoomView from '@/components/video/LiveKitRoomView'; 
 import { supabase } from '@/lib/supabase';
 import { 
   Mic, MicOff, Video, VideoOff, PhoneOff, Settings, BookOpen, 
@@ -12,6 +12,9 @@ import {
   AlertCircle, ArrowRightLeft, Radio, BellRing, X
 } from 'lucide-react';
 import styles from './Tasmik.module.css';
+
+// Import LiveKit dengan ssr: false untuk elak ralat prerender di Vercel
+const LiveKitRoomView = dynamic(() => import('@/components/video/LiveKitRoomView'), { ssr: false });
 
 const toArabicNumeral = (enNum: number) => ("" + enNum).replace(/[0-9]/g, (t) => String.fromCharCode(t.charCodeAt(0) + 1584));
 
@@ -71,7 +74,9 @@ export default function TasmikLivePage() {
   // STATE SUPABASE
   const [studentName, setStudentName] = useState('Pelajar');
   const [studentId, setStudentId] = useState('');
+  const [matrikId, setMatrikId] = useState('');
   const [rekodTerakhir, setRekodTerakhir] = useState<any>(null);
+  const [dynamicLiveRoom, setDynamicLiveRoom] = useState<string>('Bilik-Tasmik-Umum');
 
   // 1. TARIK DATA PELAJAR & REKOD TERAKHIR DARI SUPABASE
   useEffect(() => {
@@ -84,7 +89,8 @@ export default function TasmikLivePage() {
 
           const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
           if (profile) {
-            setStudentName(profile.full_name || 'Azizi Osman');
+            setStudentName(profile.full_name || 'Pelajar');
+            setMatrikId(profile.matrik_or_id || '');
             
             const { data: lastEval } = await supabase
               .from('evaluations')
@@ -120,6 +126,7 @@ export default function TasmikLivePage() {
           payload: {
             studentId,
             studentName,
+            matrik_or_id: matrikId,
             time: timeNow
           }
         });
@@ -131,6 +138,10 @@ export default function TasmikLivePage() {
     waitingChannel.on('broadcast', { event: 'call_started' }, (payload) => {
       const data = payload?.payload;
       if (data && data.studentId === studentId) {
+        // TERIMA NAMA BILIK (ROOM) SECARA DINAMIK DARI GURU
+        if (data.roomName) {
+          setDynamicLiveRoom(data.roomName);
+        }
         setIsLiveCall(true);
         quitTrainingMode();
         setShowTranslation(false);
@@ -144,20 +155,10 @@ export default function TasmikLivePage() {
 
     const recordWaitingNotification = async () => {
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('assigned_teacher_id')
-          .eq('id', studentId)
-          .maybeSingle();
-
+        const { data: profile } = await supabase.from('profiles').select('assigned_teacher_id').eq('id', studentId).maybeSingle();
         let targetGuruId = profile?.assigned_teacher_id;
         if (!targetGuruId) {
-          const { data: guru } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('role', 'Guru')
-            .limit(1)
-            .maybeSingle();
+          const { data: guru } = await supabase.from('profiles').select('id').eq('role', 'Guru').limit(1).maybeSingle();
           targetGuruId = guru?.id;
         }
 
@@ -182,7 +183,7 @@ export default function TasmikLivePage() {
       if (heartbeatTimer) clearInterval(heartbeatTimer);
       supabase.removeChannel(waitingChannel);
     };
-  }, [studentId, studentName, isLiveCall]);
+  }, [studentId, studentName, matrikId, isLiveCall]);
 
   // 2. DENGAR PANGGILAN LIVE DARI GURU SECARA MASA-NYATA (SUPABASE)
   useEffect(() => {
@@ -205,6 +206,12 @@ export default function TasmikLivePage() {
         if (activeNotif) {
           const ageMs = Date.now() - new Date(activeNotif.created_at).getTime();
           if (ageMs < 10 * 60 * 1000) {
+            
+            // JIKA BILIK DINAMIK TIDAK DITERIMA MELALUI BROADCAST, JANA BERDASARKAN SENDER ID GURU
+            if (activeNotif.sender_id && dynamicLiveRoom === 'Bilik-Tasmik-Umum') {
+              setDynamicLiveRoom(`Bilik-Tasmik-${activeNotif.sender_id}`);
+            }
+
             setIsLiveCall(true);
             quitTrainingMode();
             setShowTranslation(false);
@@ -220,7 +227,7 @@ export default function TasmikLivePage() {
     callChecker = setInterval(checkIncomingCall, 2500);
 
     return () => clearInterval(callChecker);
-  }, [studentId]);
+  }, [studentId, dynamicLiveRoom]);
 
   // 3. RAKAM KEHADIRAN (HADIR ONLINE) APABILA PANGGILAN BERMULA
   useEffect(() => {
@@ -231,20 +238,10 @@ export default function TasmikLivePage() {
           const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
           const timeNow = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-          const { data: existAtt } = await supabase
-            .from('attendance')
-            .select('id')
-            .eq('user_id', studentId)
-            .eq('date', todayIso)
-            .maybeSingle();
+          const { data: existAtt } = await supabase.from('attendance').select('id').eq('user_id', studentId).eq('date', todayIso).maybeSingle();
 
           if (!existAtt) {
-            const attData = {
-              user_id: studentId,
-              date: todayIso,
-              time_in: timeNow,
-              status: 'Hadir Online'
-            };
+            const attData = { user_id: studentId, date: todayIso, time_in: timeNow, status: 'Hadir Online' };
             try {
               await supabase.from('attendance').insert([{ ...attData, remarks: 'Tasmik Online Live' }]);
             } catch {
@@ -287,7 +284,7 @@ export default function TasmikLivePage() {
     syncLastRecord();
   }, [rekodTerakhir, surahsList]);
 
-  // 5. SENARAI SURAH (DENGAN PEMBETULAN EJAAN)
+  // 5. SENARAI SURAH
   useEffect(() => { 
     fetch('https://api.alquran.cloud/v1/surah')
       .then(res => res.json())
@@ -323,7 +320,6 @@ export default function TasmikLivePage() {
           }));
           setAyahs(combinedAyahs);
           
-          // Betulkan ejaan untuk paparan Info
           const surahNames = quranData.data.ayahs.map((a: any) => {
             let name = a.surah.englishName;
             if (name === 'Aal-i-Imraan') name = 'Ali-Imran';
@@ -333,7 +329,6 @@ export default function TasmikLivePage() {
           const uniqueSurahs = [...new Set(surahNames)].join(' & ');
           setPageMeta({ surahName: uniqueSurahs, juz: quranData.data.ayahs[0].juz });
 
-          // SELARAS DROPDOWN SURAH DENGAN HALAMAN SEMASA JIKA PENGGUNA NAVIGASI SECARA MANUAL
           if (quranData.data.ayahs.length > 0) {
             setSelectedSurahId(quranData.data.ayahs[0].surah.number);
           }
@@ -479,7 +474,6 @@ export default function TasmikLivePage() {
   const switchTurn = () => { setSparingTurn(prev => prev === 'me' ? 'partner' : 'me'); };
   const switchRole = () => { setMyRole(prev => prev === 'penghafaz' ? 'penyemak' : 'penghafaz'); };
 
-  // APABILA USER PILIH SURAH DARI DROPDOWN, TUKAR HALAMAN KEPADA MUKA SURAT PERTAMA SURAH TERSEBUT
   const handleSurahChange = async (e: any) => {
     const surahId = Number(e.target.value);
     if (!surahId) return;
@@ -520,7 +514,6 @@ export default function TasmikLivePage() {
   return (
     <DashboardLayout userName={studentName} userRole="pelajar">
       
-      {/* TETINGKAP POP-UP TETAPAN PERANTI (MODAL) */}
       {showDeviceSettings && (
         <div className={`${styles.modalOverlay} ${isDarkMode ? styles.themeDark : ''}`}>
           <div className={styles.modalContent}>
@@ -794,10 +787,10 @@ export default function TasmikLivePage() {
           ) : (
             <div className={styles.videoCard} style={{ padding: 0, overflow: 'hidden', background: '#0f172a', position: 'relative', display: 'flex', flexDirection: 'column', height: '240px', minHeight: '400px', maxHeight: '420px', borderRadius: '16px' }}>
               
-              {/* KOMPONEN LIVEKIT */}
+              {/* KOMPONEN LIVEKIT DENGAN BILIK DINAMIK */}
               <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                 <LiveKitRoomView 
-                  roomName="HuffazPro-Tasmik-Bilik-04" 
+                  roomName={dynamicLiveRoom} 
                   userName={`${studentName} (Pelajar)`} 
                   onDisconnect={() => setIsLiveCall(false)} 
                 />
@@ -918,7 +911,6 @@ export default function TasmikLivePage() {
                   <select className={styles.filterSelect} value={currentPage} onChange={(e) => setCurrentPage(Number(e.target.value))} disabled={isLiveCall}>
                     {[...Array(604)].map((_, i) => (<option key={i + 1} value={i + 1}>Halaman {i + 1}</option>))}
                   </select>
-                  {/* MEDAN "PILIH AYAT" TELAH DIBUANG DARI SINI */}
                   <button className={styles.searchBtn} disabled={isLiveCall}><Search size={16} /> Cari</button>
                 </div>
 

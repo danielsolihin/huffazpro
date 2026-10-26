@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import DashboardGuruLayout from '@/components/dashboard/DashboardGuruLayout';
-import LiveKitRoomView from '@/components/video/LiveKitRoomView'; 
 import { supabase } from '@/lib/supabase';
 import { getTeacherAssignedData, StudentProfile } from '@/lib/teacherService';
 import { 
@@ -11,6 +11,9 @@ import {
   Smartphone, Award
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+
+// IMPORT LIVEKIT SECARA DINAMIK UNTUK MENGELAKKAN RALAT PRERENDER VERCEL
+const LiveKitRoomView = dynamic(() => import('@/components/video/LiveKitRoomView'), { ssr: false });
 
 interface SurahMeta {
   number: number;
@@ -39,27 +42,39 @@ const ERROR_CONFIG: Record<RecordedError['type'], { cssClass: string; bg: string
   'Makhraj Huruf': { cssClass: 'errorMakhraj', bg: '#f5f3ff', border: '#ddd6fe', color: '#6d28d9' }
 };
 
-// PENGESAH FORMAT UUID SUPABASE
 const isValidUUID = (val: any): boolean => {
   if (typeof val !== 'string') return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
 };
 
+// KOMPONEN UTAMA (DIBUNGKUS DENGAN SUSPENSE UNTUK USESEARCHPARAMS)
 export default function StudioTasmikLivePage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
+        <Loader2 className="animate-spin" size={40} color="#0062ff" />
+      </div>
+    }>
+      <StudioTasmikContent />
+    </Suspense>
+  );
+}
+
+function StudioTasmikContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // STATE GURU & PELAJAR (SUPABASE)
   const [teacherId, setTeacherId] = useState('');
-  const [teacherName, setTeacherName] = useState('Guru');
+  const [teacherName, setTeacherName] = useState('Memuatkan...');
   const [isProfileLoaded, setIsProfileLoaded] = useState(false);
   const [senaraiPelajar, setSenaraiPelajar] = useState<StudentProfile[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [rekodTerakhir, setRekodTerakhir] = useState<any>(null);
 
   // STATE PELAJAR MENUNGGU DI BILIK MENUNGGU
-  const [waitingStudent, setWaitingStudent] = useState<{ id: string; name: string; time: string } | null>(null);
-  const [waitingStudentsMap, setWaitingStudentsMap] = useState<Record<string, { name: string; time: string }>>({});
+  const [waitingStudent, setWaitingStudent] = useState<{ id: string; name: string; time: string; matrik: string } | null>(null);
+  const [waitingStudentsMap, setWaitingStudentsMap] = useState<Record<string, { name: string; time: string; matrik: string }>>({});
 
   // REFS UNTUK MENJEJAK STATUS TANPA ISU CLOSURE REACT
   const dismissedStudentsRef = useRef<Set<string>>(new Set());
@@ -71,7 +86,6 @@ export default function StudioTasmikLivePage() {
   const [isCallingStudent, setIsCallingStudent] = useState(false);
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'connected'>('idle');
 
-  // KEMASKINI REF STATUS PANGGILAN
   useEffect(() => {
     isCallActiveRef.current = isCallActive;
   }, [isCallActive]);
@@ -98,7 +112,6 @@ export default function StudioTasmikLivePage() {
   const [activeAyahForError, setActiveAyahForError] = useState<number | null>(null);
   const [highlightedText, setHighlightedText] = useState<string>('');
 
-  // FUNGSI BUNYI NOTIFIKASI GURU (WEB AUDIO API)
   const playNotificationChime = () => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -116,11 +129,11 @@ export default function StudioTasmikLivePage() {
       osc.start();
       osc.stop(ctx.currentTime + 0.6);
     } catch {
-      // Sekatan pelayar sebelum interaksi pertama
+      // Abaikan ralat interaksi pelayar
     }
   };
 
-  // 1. TARIK DATA AWAL GURU & PELAJAR DENGAN AUTO-FALLBACK PROFIL
+  // 1. TARIK DATA AWAL GURU & PELAJAR (DINAMIK)
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -139,25 +152,11 @@ export default function StudioTasmikLivePage() {
           if (myProfile?.full_name) {
             currentGuruName = myProfile.full_name;
           }
-        } else {
-          // Cari akaun Guru secara fallback jika sesi auth bertindih
-          const { data: guruProfile } = await supabase
-            .from('profiles')
-            .select('id, full_name, role')
-            .ilike('role', '%Guru%')
-            .limit(1)
-            .maybeSingle();
-
-          if (guruProfile) {
-            currentTeacherId = guruProfile.id;
-            currentGuruName = guruProfile.full_name || 'Guru Pentasmik';
-          }
         }
 
         setTeacherId(currentTeacherId);
         setTeacherName(currentGuruName);
 
-        // Ambil senarai pelajar yang di-assign
         if (isValidUUID(currentTeacherId)) {
           try {
             const assignedData = await getTeacherAssignedData(currentTeacherId, 'Guru Pentasmik');
@@ -165,11 +164,10 @@ export default function StudioTasmikLivePage() {
               studentList = assignedData.students;
             }
           } catch (e) {
-            console.warn('getTeacherAssignedData kosong:', e);
+            console.warn('Ralat getTeacherAssignedData:', e);
           }
         }
 
-        // Fallback: Tarik terus dari rekod profil berstatus pelajar
         if (studentList.length === 0) {
           const { data: allPelajar } = await supabase
             .from('profiles')
@@ -183,13 +181,9 @@ export default function StudioTasmikLivePage() {
 
         setSenaraiPelajar(studentList);
 
-        // Tangkap parameter 'studentId' jika ia dihantar dari halaman Dashboard
         const targetStudentId = searchParams.get('studentId');
-
         if (targetStudentId && isValidUUID(targetStudentId) && studentList.some(p => p.id === targetStudentId)) {
           setSelectedStudentId(targetStudentId);
-          // Opsyenal: Automatik panggil jika mahu - tetapi ini memerlukan fungsi luar di render
-          // buat masa ini, kita biarkan ID terpilih dan menunggu butang 'Mulakan Panggilan'
         } else if (studentList.length > 0) {
           setSelectedStudentId(studentList[0].id);
         }
@@ -204,18 +198,16 @@ export default function StudioTasmikLivePage() {
     fetchInitialData();
   }, [searchParams]);
 
-  // AUTO-PANGGILAN JIKA STUDENT_ID DIRUJUK DARI PARAMETER URL
   useEffect(() => {
     const urlStudentId = searchParams.get('studentId');
     if (urlStudentId && isValidUUID(urlStudentId) && isProfileLoaded && senaraiPelajar.length > 0) {
       if (!isCallActive && selectedStudentId === urlStudentId) {
-        // Auto mulakan panggilan selepas profil dimuatkan sepenuhnya
         handleInviteStudent(urlStudentId);
       }
     }
   }, [isProfileLoaded, searchParams, senaraiPelajar]);
 
-  // 1b. DENGAR ISYARAT BILIK MENUNGGU (DILENGKAPI PENAPIS PENOLAKAN / DISMISS FILTER)
+  // 1b. DENGAR ISYARAT BILIK MENUNGGU (REALTIME DB)
   useEffect(() => {
     const waitingChannel = supabase
       .channel('tasmik_waiting_room')
@@ -226,39 +218,33 @@ export default function StudioTasmikLivePage() {
         const timeNow = data.time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         const studentName = data.studentName || 'Pelajar';
         const sId = data.studentId;
+        const matrik = data.matrik_or_id || '';
 
-        // Semak sama ada pelajar ini telah dipanggil atau ditutup mesejnya
         const isDismissed = (sId && dismissedStudentsRef.current.has(sId)) || 
                             dismissedStudentsRef.current.has(studentName);
 
-        // Jangan munculkan tetingkap hijau atau bunyikan loceng jika sedang dalam panggilan atau telah ditolak
         if (isCallActiveRef.current || isDismissed) {
           if (sId) {
             setWaitingStudentsMap(prev => ({
               ...prev,
-              [sId]: { name: studentName, time: timeNow }
+              [sId]: { name: studentName, time: timeNow, matrik }
             }));
           }
           return;
         }
 
-        // Paparkan tetingkap hijau
-        setWaitingStudent({
-          id: sId || '',
-          name: studentName,
-          time: timeNow
-        });
+        setWaitingStudent({ id: sId || '', name: studentName, time: timeNow, matrik });
 
         if (sId) {
           setWaitingStudentsMap(prev => ({
             ...prev,
-            [sId]: { name: studentName, time: timeNow }
+            [sId]: { name: studentName, time: timeNow, matrik }
           }));
 
           setSenaraiPelajar(prev => {
             const exists = prev.some(p => p.id === sId);
             if (!exists) {
-              return [{ id: sId, full_name: studentName, matrik_or_id: '012345', role: 'pelajar' } as StudentProfile, ...prev];
+              return [{ id: sId, full_name: studentName, matrik_or_id: matrik, role: 'pelajar' } as StudentProfile, ...prev];
             }
             return prev;
           });
@@ -278,11 +264,7 @@ export default function StudioTasmikLivePage() {
   // 2. KIRA TEMPOH PANGGILAN
   useEffect(() => {
     if (!isCallActive) return;
-
-    const timer = setInterval(() => {
-      setCallDuration(prev => prev + 1);
-    }, 1000);
-
+    const timer = setInterval(() => setCallDuration(prev => prev + 1), 1000);
     return () => clearInterval(timer);
   }, [isCallActive]);
 
@@ -318,25 +300,23 @@ export default function StudioTasmikLivePage() {
     fetchLastRecord();
   }, [selectedStudentId]);
 
-  // 4. AUTO-SYNC SURAH DENGAN REKOD TERAKHIR (DINAMIK KESELURUHAN)
+  // 4. AUTO-SYNC SURAH
   useEffect(() => {
     const syncLastRecord = async () => {
       if (rekodTerakhir && surahsList.length > 0) {
         const found = surahsList.find(s => s.englishName === rekodTerakhir.surah || s.name === rekodTerakhir.surah);
         if (found) {
           setSelectedSurahId(found.number);
-          
           if (rekodTerakhir.halaman && rekodTerakhir.halaman !== 'Penuh') {
             setSelectedPage(Number(rekodTerakhir.halaman));
           }
         }
       }
     };
-    
     syncLastRecord();
   }, [rekodTerakhir, surahsList]);
 
-  // 5. SENARAI SURAH (DENGAN PEMBETULAN EJAAN)
+  // 5. SENARAI SURAH
   useEffect(() => { 
     fetch('https://api.alquran.cloud/v1/surah')
       .then(res => res.json())
@@ -352,7 +332,7 @@ export default function StudioTasmikLivePage() {
       }); 
   }, []);
 
-  // 6. AMBIL AYAT MUSHAF DAN AUTO-TUKAR HALAMAN BERDASARKAN SURAH TERPILIH
+  // 6. AMBIL AYAT MUSHAF
   useEffect(() => {
     setIsLoadingQuran(true);
     fetch(`https://api.alquran.cloud/v1/surah/${selectedSurahId}/quran-uthmani`)
@@ -364,15 +344,12 @@ export default function StudioTasmikLivePage() {
         const sortedPages = pages.sort((a, b) => a - b);
         setAvailablePages(sortedPages);
         
-        // Auto-pilih muka surat pertama surah tersebut sekiranya muka surat semasa tidak tepat
         setSelectedPage(prev => sortedPages.includes(prev) ? prev : sortedPages[0]);
-        
         setIsLoadingQuran(false);
       })
       .catch(() => setIsLoadingQuran(false));
   }, [selectedSurahId]);
 
-  // APABILA GURU PILIH SURAH DARI DROPDOWN, TUKAR ID SAHAJA DAN KEMAS KINI HALAMAN
   const handleSurahChange = async (e: any) => {
     const surahId = Number(e.target.value);
     if (!surahId) return;
@@ -388,19 +365,17 @@ export default function StudioTasmikLivePage() {
     } catch (error) {
       console.error("Gagal menukar surah:", error);
     } finally {
-        setIsLoadingQuran(false);
+      setIsLoadingQuran(false);
     }
   };
 
-  // 7. HIGHLIGHT TEKS - PENGESAN DATA-AYAH DIPERBAIKI
+  // 7. HIGHLIGHT TEKS
   const handleMouseUpTextSelection = () => {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
     const selectedString = selection.toString().trim();
     if (selectedString && selectedString.length > 1) {
-      
-      // Cuba cari node induk yang memegang atribut data-ayah
       let node: HTMLElement | null = selection.anchorNode?.parentElement || null;
       while (node && !node.getAttribute('data-ayah')) {
         node = node.parentElement;
@@ -413,21 +388,16 @@ export default function StudioTasmikLivePage() {
           setHighlightedText(selectedString);
         }
       }
-      
-      // Kosongkan highlight seleksi selepas direkodkan ke state
       selection.removeAllRanges();
     }
   };
 
-  // 8. FORMULA MUSHAF BASMALLAH & LAFAZ JALALAH
   const formatAyahText = (text: string, ayahNum: number) => {
     let formattedText = text;
-
     if (selectedSurahId !== 1 && selectedSurahId !== 9 && ayahNum === 1) {
       const basmalahPattern = /^\s*ب[\u064B-\u065F\u0670]*س[\u064B-\u065F\u0670]*م[\u064B-\u065F\u0670]*\s*[ٱاإآ][\u064B-\u065F\u0670]*ل[\u064B-\u065F\u0670]*ل[\u064B-\u065F\u0670]*ه[\u064B-\u065F\u0670]*\s*[ٱاإآ][\u064B-\u065F\u0670]*ل[\u064B-\u065F\u0670]*ر[\u064B-\u065F\u0670]*ح[\u064B-\u065F\u0670]*م[\u064B-\u065F\u0670\u0640]*ن[\u064B-\u065F\u0670]*\s*[ٱاإآ][\u064B-\u065F\u0670]*ل[\u064B-\u065F\u0670]*ر[\u064B-\u065F\u0670]*ح[\u064B-\u065F\u0670]*ي[\u064B-\u065F\u0670]*م[\u064B-\u065F\u0670]*/u;
       formattedText = formattedText.replace(basmalahPattern, '').trim();
     }
-
     const lafazRegex = /(ٱللَّهِ|ٱللَّهُ|ٱللَّهَ|لِلَّهِ|اللَّهِ|اللَّهُ|اللَّهَ)/g;
     formattedText = formattedText.replace(lafazRegex, '<span style="color:#059669;font-weight:bold;">$1</span>');
 
@@ -439,7 +409,6 @@ export default function StudioTasmikLivePage() {
         `<span style="background:${theme.bg};border-bottom:2px solid ${theme.border};color:${theme.color};border-radius:4px;padding:0 2px;">${err.selectedText}</span>`
       );
     });
-
     return formattedText;
   };
 
@@ -456,7 +425,6 @@ export default function StudioTasmikLivePage() {
 
   const handleRemoveError = (id: string) => setRecordedErrors(prev => prev.filter(e => e.id !== id));
 
-  // FUNGSI TUTUP NOTIFIKASI HIJAU DAN SEKAT DARIPADA MUNCUL SEMULA
   const handleDismissWaiting = () => {
     if (waitingStudent) {
       if (waitingStudent.id) dismissedStudentsRef.current.add(waitingStudent.id);
@@ -465,9 +433,8 @@ export default function StudioTasmikLivePage() {
     setWaitingStudent(null);
   };
 
-  // 9. PANGGIL PELAJAR KE BILIK LIVE
+  // 9. PANGGIL PELAJAR KE BILIK LIVE (ROOM DINAMIK)
   const handleInviteStudent = async (targetStudentId?: string) => {
-    // Sekat mesej hijau serta-merta
     if (waitingStudent) {
       if (waitingStudent.id) dismissedStudentsRef.current.add(waitingStudent.id);
       if (waitingStudent.name) dismissedStudentsRef.current.add(waitingStudent.name);
@@ -476,21 +443,10 @@ export default function StudioTasmikLivePage() {
 
     let activeTargetId = targetStudentId || selectedStudentId;
 
-    // Pastikan ID pelajar adalah UUID sah; jika tidak, cari padanan profil
     if (!isValidUUID(activeTargetId)) {
       const foundInList = senaraiPelajar.find(p => p.id === activeTargetId || p.full_name === waitingStudent?.name);
       if (foundInList && isValidUUID(foundInList.id)) {
         activeTargetId = foundInList.id;
-      } else {
-        const { data: sProf } = await supabase
-          .from('profiles')
-          .select('id')
-          .or(`full_name.ilike.%${waitingStudent?.name || 'Azizi'}%,role.ilike.pelajar`)
-          .limit(1)
-          .maybeSingle();
-        if (sProf?.id && isValidUUID(sProf.id)) {
-          activeTargetId = sProf.id;
-        }
       }
     }
 
@@ -507,34 +463,19 @@ export default function StudioTasmikLivePage() {
       const studentObj = senaraiPelajar.find(p => p.id === activeTargetId);
       const studentName = studentObj?.full_name || waitingStudent?.name || 'Pelajar';
 
-      // Pastikan ID guru adalah UUID yang sah
-      let validTeacherId = teacherId;
-      if (!isValidUUID(validTeacherId)) {
-        const { data: gProf } = await supabase
-          .from('profiles')
-          .select('id')
-          .ilike('role', '%Guru%')
-          .limit(1)
-          .maybeSingle();
-        if (gProf?.id && isValidUUID(gProf.id)) {
-          validTeacherId = gProf.id;
-          setTeacherId(gProf.id);
-        }
-      }
+      const dynamicRoomName = teacherId ? `Bilik-Tasmik-${teacherId}` : 'Bilik-Tasmik-Umum';
 
-      // Hantar siaran langsung Realtime supaya skrin pelajar membuka LiveKit Room serta-merta
       const waitingChannel = supabase.channel('tasmik_waiting_room');
       waitingChannel.send({
         type: 'broadcast',
         event: 'call_started',
         payload: {
           studentId: activeTargetId,
-          teacherId: validTeacherId,
-          roomName: 'HuffazPro-Tasmik-Bilik-04'
+          teacherId: teacherId,
+          roomName: dynamicRoomName
         }
       });
 
-      // Simpan rekod notifikasi dalam jadual Supabase HANYA jika target ID adalah UUID sah
       if (isValidUUID(activeTargetId)) {
         const notifPayload: any = {
           user_id: activeTargetId,
@@ -544,9 +485,8 @@ export default function StudioTasmikLivePage() {
           is_read: false
         };
 
-        // Elakkan memasukkan rentetan kosong "" ke dalam lajur sender_id UUID
-        if (isValidUUID(validTeacherId)) {
-          notifPayload.sender_id = validTeacherId;
+        if (isValidUUID(teacherId)) {
+          notifPayload.sender_id = teacherId;
         }
 
         const { data: newNotif, error: notifErr } = await supabase
@@ -555,9 +495,7 @@ export default function StudioTasmikLivePage() {
           .select()
           .single();
 
-        if (notifErr) {
-          console.warn('Amaran menyimpan notifikasi panggilan:', notifErr.message);
-        } else if (newNotif?.id) {
+        if (!notifErr && newNotif?.id) {
           const intervalChecker = setInterval(async () => {
             const { data: check } = await supabase
               .from('notifications')
@@ -571,7 +509,6 @@ export default function StudioTasmikLivePage() {
               clearInterval(intervalChecker);
             }
           }, 2000);
-
           setTimeout(() => clearInterval(intervalChecker), 120000);
         }
       }
@@ -614,7 +551,7 @@ export default function StudioTasmikLivePage() {
             student_id: selectedStudentId,
             teacher_id: teacherId,
             surah: surahName,
-            halaman: String(selectedPage), // Simpan nombor halaman sebenar sahaja
+            halaman: String(selectedPage),
             gred: selectedGrade,
             catatan: combinedNotes,
             type: 'Live',
@@ -650,9 +587,9 @@ export default function StudioTasmikLivePage() {
   };
 
   const displayAyahs = ayahs.filter(a => a.page === selectedPage);
-
   const activeStudent = senaraiPelajar.find(p => p.id === selectedStudentId);
   const activeStudentName = activeStudent?.full_name || (senaraiPelajar.length === 0 ? 'Tiada Pelajar Di-Assign' : 'Pilih Pelajar');
+  const activeDynamicRoomName = teacherId ? `Bilik-Tasmik-${teacherId}` : 'Bilik-Tasmik-Umum';
 
   return (
     <DashboardGuruLayout userName={teacherName} userRole="Ketua Pentasmik">
@@ -669,36 +606,16 @@ export default function StudioTasmikLivePage() {
         {waitingStudent && !isCallActive && (
           <div style={{
             background: 'linear-gradient(135deg, #064e3b 0%, #047857 100%)',
-            border: '1px solid #10b981',
-            color: '#ffffff',
-            padding: '0.85rem 1.25rem',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '0.85rem',
-            boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+            border: '1px solid #10b981', color: '#ffffff', padding: '0.85rem 1.25rem', borderRadius: '12px', display: 'flex',
+            alignItems: 'center', justifyContent: 'space-between', gap: '0.85rem', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
             animation: 'fadeIn 0.3s ease'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{
-                background: '#10b981',
-                borderRadius: '50%',
-                width: '40px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                flexShrink: 0,
-                boxShadow: '0 0 10px rgba(16, 185, 129, 0.6)'
-              }}>
+              <div style={{ background: '#10b981', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, boxShadow: '0 0 10px rgba(16, 185, 129, 0.6)' }}>
                 <BellRing size={20} />
               </div>
               <div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>
-                  Pelajar Sedang Menunggu di Bilik Menunggu!
-                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>Pelajar Sedang Menunggu di Bilik Menunggu!</div>
                 <div style={{ fontSize: '0.82rem', color: '#d1fae5', marginTop: '2px' }}>
                   <strong>{waitingStudent.name}</strong> kini berada di talian ({waitingStudent.time}) dan sedia untuk tasmik.
                 </div>
@@ -706,43 +623,10 @@ export default function StudioTasmikLivePage() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => handleInviteStudent(waitingStudent.id)}
-                disabled={isCallActive}
-                style={{
-                  background: '#ffffff',
-                  color: '#065f46',
-                  border: 'none',
-                  padding: '0.55rem 1.1rem',
-                  borderRadius: '8px',
-                  fontWeight: 800,
-                  fontSize: '0.82rem',
-                  cursor: isCallActive ? 'not-allowed' : 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
-                }}
-              >
+              <button type="button" onClick={() => handleInviteStudent(waitingStudent.id)} disabled={isCallActive} style={{ background: '#ffffff', color: '#065f46', border: 'none', padding: '0.55rem 1.1rem', borderRadius: '8px', fontWeight: 800, fontSize: '0.82rem', cursor: isCallActive ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}>
                 <PhoneCall size={15} /> Mulakan Panggilan
               </button>
-              <button
-                type="button"
-                onClick={handleDismissWaiting}
-                style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  border: 'none',
-                  color: '#ffffff',
-                  borderRadius: '6px',
-                  padding: '0.45rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title="Tutup pemberitahuan"
-              >
+              <button type="button" onClick={handleDismissWaiting} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '0.45rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Tutup pemberitahuan">
                 <X size={16} />
               </button>
             </div>
@@ -752,20 +636,8 @@ export default function StudioTasmikLivePage() {
         {/* BAR ATAS KAWALAN RESPONSIVE */}
         <div className="tasmik-top-control-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
-            <span style={{
-              background: isCallActive ? '#ef4444' : '#475569',
-              color: '#fff',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              padding: '0.25rem 0.65rem',
-              borderRadius: '20px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}>
-              {isCallActive && (
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff', animation: 'spin 1.5s infinite' }}></span>
-              )}
+            <span style={{ background: isCallActive ? '#ef4444' : '#475569', color: '#fff', fontSize: '0.72rem', fontWeight: 800, padding: '0.25rem 0.65rem', borderRadius: '20px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              {isCallActive && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff', animation: 'spin 1.5s infinite' }}></span>}
               {isCallActive ? 'LIVE' : 'STANDBY'}
             </span>
 
@@ -781,17 +653,7 @@ export default function StudioTasmikLivePage() {
 
           <div className="tasmik-top-action-group">
             {/* DROPDOWN PEMILIH PELAJAR */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              background: isCallActive ? '#090d16' : '#1e293b',
-              padding: '0.35rem 0.65rem',
-              borderRadius: '8px',
-              border: isCallActive ? '1px dashed #475569' : '1px solid #334155',
-              flex: 1,
-              minWidth: '220px'
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: isCallActive ? '#090d16' : '#1e293b', padding: '0.35rem 0.65rem', borderRadius: '8px', border: isCallActive ? '1px dashed #475569' : '1px solid #334155', flex: 1, minWidth: '220px' }}>
               {isCallActive ? <Lock size={15} color="#f59e0b" /> : <Users size={15} color="#94a3b8" />}
               <span style={{ fontSize: '0.75rem', color: isCallActive ? '#94a3b8' : '#cbd5e1', fontWeight: 600, whiteSpace: 'nowrap' }}>
                 {isCallActive ? 'Pelajar Dikunci:' : 'Tukar:'}
@@ -800,17 +662,7 @@ export default function StudioTasmikLivePage() {
                 value={selectedStudentId}
                 onChange={(e) => setSelectedStudentId(e.target.value)}
                 disabled={isCallActive || senaraiPelajar.length === 0}
-                style={{
-                  width: '100%',
-                  background: isCallActive ? '#090d16' : '#0f172a',
-                  color: isCallActive ? '#94a3b8' : '#ffffff',
-                  border: 'none',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  cursor: (isCallActive || senaraiPelajar.length === 0) ? 'not-allowed' : 'pointer',
-                  outline: 'none',
-                  opacity: isCallActive ? 0.8 : 1
-                }}
+                style={{ width: '100%', background: isCallActive ? '#090d16' : '#0f172a', color: isCallActive ? '#94a3b8' : '#ffffff', border: 'none', fontSize: '0.82rem', fontWeight: 700, cursor: (isCallActive || senaraiPelajar.length === 0) ? 'not-allowed' : 'pointer', outline: 'none', opacity: isCallActive ? 0.8 : 1 }}
               >
                 {senaraiPelajar.length === 0 ? (
                   <option value="">Tiada Pelajar Di-Assign</option>
@@ -829,84 +681,31 @@ export default function StudioTasmikLivePage() {
             </div>
 
             {/* BUTANG PANGGIL PELAJAR KE LIVE */}
-            <button
-              type="button"
-              onClick={() => handleInviteStudent()}
-              disabled={isCallingStudent || !selectedStudentId || isCallActive}
-              style={{
-                background: isCallActive ? '#059669' : '#0062ff',
-                color: '#fff',
-                border: 'none',
-                padding: '0.55rem 1rem',
-                borderRadius: '8px',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: (isCallingStudent || isCallActive || !selectedStudentId) ? 'default' : 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                minHeight: '40px',
-                whiteSpace: 'nowrap'
-              }}
-            >
+            <button type="button" onClick={() => handleInviteStudent()} disabled={isCallingStudent || !selectedStudentId || isCallActive} style={{ background: isCallActive ? '#059669' : '#0062ff', color: '#fff', border: 'none', padding: '0.55rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, cursor: (isCallingStudent || isCallActive || !selectedStudentId) ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', minHeight: '40px', whiteSpace: 'nowrap' }}>
               <BellRing size={15} /> 
-              {callStatus === 'connected' 
-                ? 'Pelajar Bersambung!' 
-                : isCallActive 
-                ? 'Panggilan Aktif' 
-                : 'Panggil Pelajar'}
+              {callStatus === 'connected' ? 'Pelajar Bersambung!' : isCallActive ? 'Panggilan Aktif' : 'Panggil Pelajar'}
             </button>
 
             {/* JAM TEMPOH PANGGILAN */}
-            <div style={{
-              background: '#000000',
-              padding: '0.45rem 0.85rem',
-              borderRadius: '6px',
-              fontFamily: 'monospace',
-              fontSize: '0.9rem',
-              fontWeight: 700,
-              color: isCallActive ? '#10b981' : '#64748b',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '40px'
-            }}>
+            <div style={{ background: '#000000', padding: '0.45rem 0.85rem', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: 700, color: isCallActive ? '#10b981' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '40px' }}>
               {isCallActive ? formatTimer(callDuration) : '00:00'}
             </div>
           </div>
         </div>
 
         {/* STATUS PELAJAR & REKOD TERAKHIR */}
-        <div style={{
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderRadius: '10px',
-          padding: '0.65rem 1rem',
-          fontSize: '0.8rem',
-          color: '#475569',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '0.4rem'
-        }}>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.65rem 1rem', fontSize: '0.8rem', color: '#475569', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
           <div>
             <strong>Pelajar:</strong> {activeStudentName}{' '}
             {isCallActive ? (
               <span style={{ color: '#059669', fontWeight: 700 }}>(Sesi Live)</span>
             ) : waitingStudentsMap[selectedStudentId] ? (
-              <span style={{ color: '#059669', fontWeight: 800 }}>
-                (🟢 Sedang Menunggu di Bilik Menunggu)
-              </span>
+              <span style={{ color: '#059669', fontWeight: 800 }}>(🟢 Sedang Menunggu di Bilik Menunggu)</span>
             ) : null}
           </div>
           <div>
             {rekodTerakhir ? (
-              <span>
-                Lalu: <strong>{rekodTerakhir.surah}</strong> | Halaman: <strong>{rekodTerakhir.halaman && rekodTerakhir.halaman !== 'Penuh' ? rekodTerakhir.halaman : '-'}</strong> | Gred:{' '}
-                <strong style={{ color: '#059669' }}>{rekodTerakhir.gred}</strong>
-              </span>
+              <span>Lalu: <strong>{rekodTerakhir.surah}</strong> | Halaman: <strong>{rekodTerakhir.halaman && rekodTerakhir.halaman !== 'Penuh' ? rekodTerakhir.halaman : '-'}</strong> | Gred: <strong style={{ color: '#059669' }}>{rekodTerakhir.gred}</strong></span>
             ) : (
               <span style={{ color: '#94a3b8' }}>Tiada rekod tasmik lalu.</span>
             )}
@@ -915,26 +714,12 @@ export default function StudioTasmikLivePage() {
 
         {/* TOGOL TAB KHAS SKRIN TELEFON (< 768px) */}
         <div className="tasmik-mobile-tab-bar">
-          <button
-            type="button"
-            className={`tasmik-tab-btn ${mobileTab === 'mushaf' ? 'active' : ''}`}
-            onClick={() => setMobileTab('mushaf')}
-          >
-            <BookOpen size={16} />
-            <span>Mushaf Al-Quran</span>
+          <button type="button" className={`tasmik-tab-btn ${mobileTab === 'mushaf' ? 'active' : ''}`} onClick={() => setMobileTab('mushaf')}>
+            <BookOpen size={16} /> <span>Mushaf Al-Quran</span>
           </button>
-          <button
-            type="button"
-            className={`tasmik-tab-btn ${mobileTab === 'panel' ? 'active' : ''}`}
-            onClick={() => setMobileTab('panel')}
-          >
-            <Video size={16} />
-            <span>Kamera & Penilaian</span>
-            {recordedErrors.length > 0 && (
-              <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.65rem', fontWeight: 800, padding: '1px 6px', borderRadius: '10px' }}>
-                {recordedErrors.length}
-              </span>
-            )}
+          <button type="button" className={`tasmik-tab-btn ${mobileTab === 'panel' ? 'active' : ''}`} onClick={() => setMobileTab('panel')}>
+            <Video size={16} /> <span>Kamera & Penilaian</span>
+            {recordedErrors.length > 0 && <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.65rem', fontWeight: 800, padding: '1px 6px', borderRadius: '10px' }}>{recordedErrors.length}</span>}
           </button>
         </div>
 
@@ -943,36 +728,10 @@ export default function StudioTasmikLivePage() {
           
           {/* KOLUM KIRI: VIDEO CALL LIVEKIT & BORANG GRED */}
           <div className={`tasmik-panel-col ${mobileTab === 'panel' ? 'show-mobile' : 'hide-mobile'}`}>
-            <div style={{
-              background: '#0f172a',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              minHeight: '260px',
-              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
-            }}>
+            <div style={{ background: '#0f172a', borderRadius: '16px', overflow: 'hidden', minHeight: '260px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
               {!isCallActive ? (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: '260px',
-                  padding: '2rem 1.5rem',
-                  textAlign: 'center',
-                  color: '#94a3b8'
-                }}>
-                  <div style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: '#1e293b',
-                    color: '#60a5fa',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: '1rem',
-                    border: '1px solid #334155'
-                  }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '260px', padding: '2rem 1.5rem', textAlign: 'center', color: '#94a3b8' }}>
+                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#1e293b', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', border: '1px solid #334155' }}>
                     <Video size={28} />
                   </div>
                   <h4 style={{ margin: '0 0 0.35rem 0', color: '#f8fafc', fontSize: '0.95rem', fontWeight: 700 }}>
@@ -983,32 +742,14 @@ export default function StudioTasmikLivePage() {
                       ? `${activeStudentName} kini sedia di bilik menunggu! Klik butang di bawah untuk memulakan sesi.` 
                       : 'Pilih pelajar di atas dan klik Panggil Pelajar untuk memulakan sesi video.'}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => handleInviteStudent()}
-                    disabled={!selectedStudentId || isCallingStudent}
-                    style={{
-                      background: waitingStudentsMap[selectedStudentId] ? '#059669' : '#0062ff',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '0.65rem 1.25rem',
-                      borderRadius: '8px',
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      cursor: (!selectedStudentId || isCallingStudent) ? 'not-allowed' : 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      minHeight: '44px'
-                    }}
-                  >
+                  <button type="button" onClick={() => handleInviteStudent()} disabled={!selectedStudentId || isCallingStudent} style={{ background: waitingStudentsMap[selectedStudentId] ? '#059669' : '#0062ff', color: '#ffffff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: (!selectedStudentId || isCallingStudent) ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px' }}>
                     <PhoneCall size={16} /> 
                     {waitingStudentsMap[selectedStudentId] ? 'Sertai Pelajar di Bilik' : 'Mulakan Panggilan'}
                   </button>
                 </div>
               ) : isProfileLoaded ? (
                 <LiveKitRoomView 
-                  roomName="HuffazPro-Tasmik-Bilik-04" 
+                  roomName={activeDynamicRoomName} 
                   userName={`${teacherName} (Guru Pentasmik)`} 
                   onDisconnect={handleEndCall} 
                 />
@@ -1022,31 +763,10 @@ export default function StudioTasmikLivePage() {
             {/* PANEL PENILAIAN */}
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', display: 'block', marginBottom: '0.5rem' }}>
-                  Gred Penilaian Akhir
-                </span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', display: 'block', marginBottom: '0.5rem' }}>Gred Penilaian Akhir</span>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.45rem' }}>
                   {['Mumtaz', 'Jayyid Jiddan', 'Jayyid', 'Maqbul', 'Rasib'].map(g => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setSelectedGrade(g)}
-                      style={{
-                        padding: '0.6rem 0.25rem',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        borderRadius: '8px',
-                        border: selectedGrade === g ? '2px solid #0062ff' : '1px solid #cbd5e1',
-                        background: selectedGrade === g ? '#eff6ff' : '#fff',
-                        color: selectedGrade === g ? '#0062ff' : '#475569',
-                        cursor: 'pointer',
-                        minHeight: '42px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
+                    <button key={g} type="button" onClick={() => setSelectedGrade(g)} style={{ padding: '0.6rem 0.25rem', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: selectedGrade === g ? '2px solid #0062ff' : '1px solid #cbd5e1', background: selectedGrade === g ? '#eff6ff' : '#fff', color: selectedGrade === g ? '#0062ff' : '#475569', cursor: 'pointer', minHeight: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease' }}>
                       {g}
                     </button>
                   ))}
@@ -1075,40 +795,12 @@ export default function StudioTasmikLivePage() {
               </div>
 
               <div>
-                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', display: 'block', marginBottom: '0.4rem' }}>
-                  Ulasan Tambahan
-                </span>
-                <textarea
-                  rows={2}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Taipkan ulasan anda..."
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
-                />
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', display: 'block', marginBottom: '0.4rem' }}>Ulasan Tambahan</span>
+                <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Taipkan ulasan anda..." style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
 
-              <button
-                type="button"
-                onClick={handleSubmitPenilaian}
-                disabled={isSubmitting || !selectedStudentId}
-                style={{
-                  background: '#059669',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '0.75rem',
-                  borderRadius: '10px',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                  cursor: (isSubmitting || !selectedStudentId) ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  minHeight: '46px'
-                }}
-              >
-                {isSubmitting ? <Loader2 size={18} className="spinIcon" /> : <Send size={18} />}
-                Sahkan & Hantar Rekod
+              <button type="button" onClick={handleSubmitPenilaian} disabled={isSubmitting || !selectedStudentId} style={{ background: '#059669', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.88rem', cursor: (isSubmitting || !selectedStudentId) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', minHeight: '46px' }}>
+                {isSubmitting ? <Loader2 size={18} className="spinIcon" /> : <Send size={18} />} Sahkan & Hantar Rekod
               </button>
             </div>
           </div>
@@ -1124,28 +816,15 @@ export default function StudioTasmikLivePage() {
               <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-start' }} className="mushaf-filter-controls">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flex: 1, minWidth: '160px' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>Surah:</span>
-                  <select
-                    value={selectedSurahId}
-                    onChange={handleSurahChange}
-                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem', fontWeight: 700, outline: 'none', background: '#f8fafc' }}
-                  >
-                    {surahsList.map(s => (
-                      <option key={s.number} value={s.number}>{s.number}. {s.englishName} ({s.name})</option>
-                    ))}
+                  <select value={selectedSurahId} onChange={handleSurahChange} style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem', fontWeight: 700, outline: 'none', background: '#f8fafc' }}>
+                    {surahsList.map(s => <option key={s.number} value={s.number}>{s.number}. {s.englishName} ({s.name})</option>)}
                   </select>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', minWidth: '110px' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>M/S:</span>
-                  <select
-                    value={selectedPage}
-                    onChange={(e) => setSelectedPage(Number(e.target.value))}
-                    disabled={isLoadingQuran}
-                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem', fontWeight: 700, outline: 'none', background: '#f8fafc' }}
-                  >
-                    {availablePages.map(page => (
-                      <option key={page} value={page}>M/S {page}</option>
-                    ))}
+                  <select value={selectedPage} onChange={(e) => setSelectedPage(Number(e.target.value))} disabled={isLoadingQuran} style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem', fontWeight: 700, outline: 'none', background: '#f8fafc' }}>
+                    {availablePages.map(page => <option key={page} value={page}>M/S {page}</option>)}
                   </select>
                 </div>
               </div>
@@ -1157,28 +836,16 @@ export default function StudioTasmikLivePage() {
                 <Loader2 size={32} className="spinIcon" />
               </div>
             ) : (
-              <div
-                onMouseUp={handleMouseUpTextSelection}
-                onTouchEnd={handleMouseUpTextSelection}
-                className="quran-reading-paper"
-              >
+              <div onMouseUp={handleMouseUpTextSelection} onTouchEnd={handleMouseUpTextSelection} className="quran-reading-paper">
                 {displayAyahs.length > 0 && displayAyahs[0]?.numberInSurah === 1 && selectedSurahId !== 1 && selectedSurahId !== 9 && (
-                  <div className="bismillah-title">
-                    بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
-                  </div>
+                  <div className="bismillah-title">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
                 )}
 
                 <div className="quran-text-flow">
                   {displayAyahs.map((ayah) => (
                     <React.Fragment key={ayah.number}>
-                      <span
-                        data-ayah={ayah.numberInSurah} // ATRIBUT PENTING UNTUK HIGHLIGHT
-                        dangerouslySetInnerHTML={{ __html: formatAyahText(ayah.text, ayah.numberInSurah) }}
-                        style={{ cursor: 'text' }}
-                      />
-                      <span style={{ color: '#059669', fontWeight: 'bold', margin: '0 4px', fontSize: '1.15rem' }}>
-                        ﴿{ayah.numberInSurah}﴾
-                      </span>{' '}
+                      <span data-ayah={ayah.numberInSurah} dangerouslySetInnerHTML={{ __html: formatAyahText(ayah.text, ayah.numberInSurah) }} style={{ cursor: 'text' }} />
+                      <span style={{ color: '#059669', fontWeight: 'bold', margin: '0 4px', fontSize: '1.15rem' }}>﴿{ayah.numberInSurah}﴾</span>{' '}
                     </React.Fragment>
                   ))}
                 </div>
@@ -1190,12 +857,7 @@ export default function StudioTasmikLivePage() {
 
         {/* MODAL POP-UP PILIH RALAT */}
         {activeAyahForError && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1000, backdropFilter: 'blur(4px)', padding: '1rem'
-          }}>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)', padding: '1rem' }}>
             <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '420px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>Tanda Ralat - Ayat {activeAyahForError}</h4>
@@ -1204,9 +866,7 @@ export default function StudioTasmikLivePage() {
 
               <div style={{ background: '#f8fafc', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Kalimah Disorot</span>
-                <div style={{ fontFamily: '"Amiri Quran", serif', fontSize: '1.5rem', direction: 'rtl', marginTop: '0.3rem' }}>
-                  {highlightedText}
-                </div>
+                <div style={{ fontFamily: '"Amiri Quran", serif', fontSize: '1.5rem', direction: 'rtl', marginTop: '0.3rem' }}>{highlightedText}</div>
               </div>
 
               <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Pilih jenis ralat bacaan:</span>
@@ -1226,167 +886,36 @@ export default function StudioTasmikLivePage() {
       <style jsx global>{`
         .spinIcon { animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-6px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .tasmik-top-control-card {
-          background: #0f172a;
-          color: #ffffff;
-          border-radius: 14px;
-          padding: 0.85rem 1.25rem;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 0.85rem;
-          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-        }
-
-        .tasmik-top-action-group {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-        }
-
-        .tasmik-mobile-tab-bar {
-          display: none;
-        }
-
-        .tasmik-main-grid-layout {
-          display: grid;
-          grid-template-columns: 340px 1fr;
-          gap: 1.25rem;
-          align-items: start;
-        }
-
-        .tasmik-panel-col {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .tasmik-mushaf-col {
-          background: #ffffff;
-          border-radius: 16px;
-          border: 1px solid #e2e8f0;
-          padding: 1.25rem;
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .quran-reading-paper {
-          background: #fffdfa;
-          border: 1px solid #f1e9d2;
-          border-radius: 12px;
-          padding: 1.75rem 1.25rem;
-          min-height: 380px;
-          position: relative;
-        }
-
-        .bismillah-title {
-          font-family: 'Amiri Quran', serif;
-          font-size: 1.6rem;
-          text-align: center;
-          margin-bottom: 1.25rem;
-          color: #0f172a;
-        }
-
-        .quran-text-flow {
-          direction: rtl;
-          text-align: justify;
-          line-height: 2.4;
-          font-size: clamp(1.25rem, 4.5vw, 1.55rem);
-          font-family: 'Amiri Quran', 'Traditional Arabic', serif;
-          color: #0f172a;
-        }
+        .tasmik-top-control-card { background: #0f172a; color: #ffffff; border-radius: 14px; padding: 0.85rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.85rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .tasmik-top-action-group { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+        .tasmik-mobile-tab-bar { display: none; }
+        .tasmik-main-grid-layout { display: grid; grid-template-columns: 340px 1fr; gap: 1.25rem; align-items: start; }
+        .tasmik-panel-col { display: flex; flex-direction: column; gap: 1rem; }
+        .tasmik-mushaf-col { background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+        .quran-reading-paper { background: #fffdfa; border: 1px solid #f1e9d2; border-radius: 12px; padding: 1.75rem 1.25rem; min-height: 380px; position: relative; }
+        .bismillah-title { font-family: 'Amiri Quran', serif; font-size: 1.6rem; text-align: center; margin-bottom: 1.25rem; color: #0f172a; }
+        .quran-text-flow { direction: rtl; text-align: justify; line-height: 2.4; font-size: clamp(1.25rem, 4.5vw, 1.55rem); font-family: 'Amiri Quran', 'Traditional Arabic', serif; color: #0f172a; }
 
         @media (max-width: 1023px) {
-          .tasmik-main-grid-layout {
-            grid-template-columns: 300px 1fr;
-            gap: 1rem;
-          }
-          .tasmik-top-action-group {
-            width: 100%;
-          }
+          .tasmik-main-grid-layout { grid-template-columns: 300px 1fr; gap: 1rem; }
+          .tasmik-top-action-group { width: 100%; }
         }
 
         @media (max-width: 767px) {
-          .tasmik-top-control-card {
-            flex-direction: column;
-            align-items: stretch;
-            padding: 1rem;
-          }
-          .tasmik-top-action-group {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 0.65rem;
-          }
-          .tasmik-top-action-group > div, 
-          .tasmik-top-action-group > button {
-            width: 100% !important;
-          }
-
-          .tasmik-mobile-tab-bar {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            padding: 0.35rem;
-            border-radius: 10px;
-          }
-
-          .tasmik-tab-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 0.65rem 0.5rem;
-            font-size: 0.8rem;
-            font-weight: 700;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            background: transparent;
-            color: #64748b;
-            transition: all 0.2s;
-            min-height: 42px;
-          }
-
-          .tasmik-tab-btn.active {
-            background: #0062ff;
-            color: #ffffff;
-            box-shadow: 0 2px 8px rgba(0, 98, 255, 0.25);
-          }
-
-          .tasmik-main-grid-layout {
-            grid-template-columns: 1fr !important;
-          }
-
-          .hide-mobile {
-            display: none !important;
-          }
-
-          .show-mobile {
-            display: flex !important;
-          }
-
-          .tasmik-mushaf-col {
-            padding: 1rem;
-          }
-
-          .quran-reading-paper {
-            padding: 1.25rem 0.85rem;
-          }
-
-          .bismillah-title {
-            font-size: 1.35rem;
-          }
+          .tasmik-top-control-card { flex-direction: column; align-items: stretch; padding: 1rem; }
+          .tasmik-top-action-group { flex-direction: column; align-items: stretch; gap: 0.65rem; }
+          .tasmik-top-action-group > div, .tasmik-top-action-group > button { width: 100% !important; }
+          .tasmik-mobile-tab-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: #ffffff; border: 1px solid #e2e8f0; padding: 0.35rem; border-radius: 10px; }
+          .tasmik-tab-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0.65rem 0.5rem; font-size: 0.8rem; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #64748b; transition: all 0.2s; min-height: 42px; }
+          .tasmik-tab-btn.active { background: #0062ff; color: #ffffff; box-shadow: 0 2px 8px rgba(0, 98, 255, 0.25); }
+          .tasmik-main-grid-layout { grid-template-columns: 1fr !important; }
+          .hide-mobile { display: none !important; }
+          .show-mobile { display: flex !important; }
+          .tasmik-mushaf-col { padding: 1rem; }
+          .quran-reading-paper { padding: 1.25rem 0.85rem; }
+          .bismillah-title { font-size: 1.35rem; }
         }
       `}</style>
     </DashboardGuruLayout>
