@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import DashboardGuruLayout from '@/components/dashboard/DashboardGuruLayout';
 import { supabase } from '@/lib/supabase';
+import { getTeacherAssignedData, StudentProfile } from '@/lib/teacherService';
 import { 
   ClipboardCheck, MapPin, AlertCircle, BookOpen, 
   Trash2, X, Send, Loader2, MousePointer2, Clock, Info, CheckCircle2,
   CalendarCheck, UserCheck, Check, ShieldCheck, XCircle, RefreshCw
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import styles from './PenilaianOffline.module.css';
 
 interface SurahMeta {
@@ -38,8 +39,9 @@ const ERROR_CONFIG: Record<RecordedError['type'], { cssClass: string; bg: string
   'Makhraj Huruf': { cssClass: 'errorMakhraj', bg: '#f5f3ff', border: '#ddd6fe', color: '#6d28d9' }
 };
 
-export default function PenilaianOfflinePage() {
+function PenilaianOfflineContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   // STATE SUPABASE
   const [teacherId, setTeacherId] = useState('');
@@ -180,7 +182,14 @@ export default function PenilaianOfflinePage() {
 
         if (filteredPelajar.length > 0) {
           setSenaraiPelajar(filteredPelajar);
-          setSelectedStudent(filteredPelajar[0].id);
+          
+          // --- KEMASKINI PARAMETER TANGKAPAN URL DI SINI ---
+          const targetStudentId = searchParams.get('studentId');
+          if (targetStudentId && filteredPelajar.some(p => p.id === targetStudentId)) {
+            setSelectedStudent(targetStudentId);
+          } else {
+            setSelectedStudent(filteredPelajar[0].id);
+          }
         } else {
           setSenaraiPelajar([]);
           setSelectedStudent('');
@@ -191,7 +200,7 @@ export default function PenilaianOfflinePage() {
       }
     };
     fetchInitialData();
-  }, []);
+  }, [searchParams]);
 
   // 2. KESAN REKOD TERAKHIR DAN STATUS KEHADIRAN APABILA PELAJAR DIPILIH
   useEffect(() => {
@@ -1037,5 +1046,17 @@ export default function PenilaianOfflinePage() {
         @keyframes spin { 100% { transform: rotate(360deg); } }
       `}</style>
     </DashboardGuruLayout>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#0062ff' }}>
+        Loading...
+      </div>
+    }>
+      <PenilaianOfflineContent />
+    </Suspense>
   );
 }

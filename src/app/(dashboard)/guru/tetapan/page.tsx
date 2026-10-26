@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { 
   Settings, User, GraduationCap, Bell, Lock, 
   Camera, UploadCloud, FileText, Trash2, CheckCircle2, 
-  AlertCircle, Save, Loader2, CalendarCheck, Printer, Clock, Eye
+  AlertCircle, Save, Loader2, CalendarCheck, Printer, Clock, Eye,
+  Volume2, Type, Send
 } from 'lucide-react';
 import styles from './Tetapan.module.css';
 
@@ -24,7 +25,7 @@ interface TeacherAttendanceRecord {
   masaMasuk: string;
   masaKeluar: string;
   jumlahJam: string;
-  status: 'Hadir' | 'Lewat' | 'Cuti Sakit' | 'Cuti Rehat';
+  status: string;
   catatan: string;
 }
 
@@ -83,11 +84,16 @@ export default function TetapanGuruPage() {
   const [tahunGraduat, setTahunGraduat] = useState('');
   const [certificates, setCertificates] = useState<CertificateItem[]>([]);
 
-  // 3. STATE NOTIFIKASI & KELAS
+  // 3. STATE NOTIFIKASI, KELAS & PREFERENSI SISTEM
   const [kelasSeliaan, setKelasSeliaan] = useState('');
+  const [senaraiKelas, setSenaraiKelas] = useState<{id: string, name: string}[]>([]);
+  
+  // State Preferensi (Disimpan dalam Supabase DB: lajur system_prefs)
   const [notifHadir, setNotifHadir] = useState(true);
   const [notifEmail, setNotifEmail] = useState(false);
-  const [senaraiKelas, setSenaraiKelas] = useState<{id: string, name: string}[]>([]);
+  const [notifPeringatanHarian, setNotifPeringatanHarian] = useState(false);
+  const [qariAudio, setQariAudio] = useState('ar.alafasy');
+  const [quranFontSize, setQuranFontSize] = useState('Biasa');
 
   // 4. STATE KATA LALUAN
   const [newPassword, setNewPassword] = useState('');
@@ -105,8 +111,9 @@ export default function TetapanGuruPage() {
       const currentId = authData.user.id;
       setUserId(currentId);
 
+      // Tarik Senarai Kelas Dari DB (Dinamik)
       let classesList: {id: string, name: string}[] = [];
-      const { data: classesData } = await supabase.from('classes').select('id, name');
+      const { data: classesData } = await supabase.from('classes').select('id, name').order('name');
       if (classesData) {
         classesList = classesData;
         setSenaraiKelas(classesData);
@@ -132,6 +139,18 @@ export default function TetapanGuruPage() {
         }
         setKelasSeliaan(initialClassId);
 
+        // Muat Tetapan Notifikasi & Aplikasi daripada Pangkalan Data Supabase
+        if (profile.system_prefs) {
+          let prefs = typeof profile.system_prefs === 'string' ? JSON.parse(profile.system_prefs) : profile.system_prefs;
+          if (prefs) {
+            setNotifHadir(prefs.notifHadir ?? true);
+            setNotifEmail(prefs.notifEmail ?? false);
+            setNotifPeringatanHarian(prefs.notifPeringatanHarian ?? false);
+            setQariAudio(prefs.qariAudio ?? 'ar.alafasy');
+            setQuranFontSize(prefs.quranFontSize ?? 'Biasa');
+          }
+        }
+
         // Ekstrak URL sijil berpisah koma dari pangkalan data
         if (profile.certificate_docs) {
           const urls = profile.certificate_docs.split(',').map((u: string) => u.trim()).filter(Boolean);
@@ -147,18 +166,32 @@ export default function TetapanGuruPage() {
         }
       }
 
+      // TARIK DATA KEHADIRAN
       const { data: attData } = await supabase.from('attendance').select('*').eq('user_id', currentId).order('created_at', { ascending: false });
       if (attData && attData.length > 0) {
-        const formattedLogs: TeacherAttendanceRecord[] = attData.map((att: any) => ({
-          id: att.id,
-          tarikh: att.date || new Date(att.created_at).toLocaleDateString('ms-MY'),
-          hari: new Date(att.created_at).toLocaleDateString('ms-MY', { weekday: 'long' }),
-          masaMasuk: formatTimeAMPM(att.time_in) !== '-' ? formatTimeAMPM(att.time_in) : '08:00 AM',
-          masaKeluar: formatTimeAMPM(att.time_out) !== '-' ? formatTimeAMPM(att.time_out) : '04:30 PM',
-          jumlahJam: att.duration || '8 Jam',
-          status: att.status || 'Hadir',
-          catatan: att.remarks || att.notes || 'Bertugas di Maahad'
-        }));
+        const formattedLogs: TeacherAttendanceRecord[] = attData.map((att: any) => {
+          let dateStr = att.date;
+          let dayName = '-';
+          if (!dateStr && att.created_at) {
+            dateStr = new Date(att.created_at).toISOString().split('T')[0];
+          }
+          if (dateStr) {
+            dayName = new Date(dateStr).toLocaleDateString('ms-MY', { weekday: 'long' });
+          } else {
+            dateStr = new Date().toLocaleDateString('ms-MY');
+          }
+
+          return {
+            id: att.id,
+            tarikh: dateStr,
+            hari: dayName,
+            masaMasuk: formatTimeAMPM(att.time_in) !== '-' ? formatTimeAMPM(att.time_in) : formatTimeAMPM(att.created_at),
+            masaKeluar: formatTimeAMPM(att.time_out) !== '-' ? formatTimeAMPM(att.time_out) : '-',
+            jumlahJam: att.duration || '-',
+            status: att.status || 'Hadir Bertugas',
+            catatan: att.remarks || att.notes || 'Portal Pentasmik'
+          };
+        });
         setAllAttendanceLogs(formattedLogs);
       }
     } catch (err) { 
@@ -175,8 +208,8 @@ export default function TetapanGuruPage() {
   const getFilteredAttendance = () => {
     switch (periodFilter) {
       case 'harian': return allAttendanceLogs.slice(0, 1);
-      case 'mingguan': return allAttendanceLogs.slice(0, 5);
-      case 'bulanan': return allAttendanceLogs;
+      case 'mingguan': return allAttendanceLogs.slice(0, 7);
+      case 'bulanan': return allAttendanceLogs.slice(0, 30);
       case 'tahunan': return allAttendanceLogs;
       default: return allAttendanceLogs;
     }
@@ -184,9 +217,9 @@ export default function TetapanGuruPage() {
 
   const displayedAttendance = getFilteredAttendance();
   const totalDays = displayedAttendance.length;
-  const hadirDays = displayedAttendance.filter(a => a.status === 'Hadir').length;
-  const lewatDays = displayedAttendance.filter(a => a.status === 'Lewat').length;
-  const cutiDays = displayedAttendance.filter(a => a.status === 'Cuti Sakit' || a.status === 'Cuti Rehat').length;
+  const hadirDays = displayedAttendance.filter(a => a.status.includes('Hadir')).length;
+  const lewatDays = displayedAttendance.filter(a => a.status.includes('Lewat')).length;
+  const cutiDays = displayedAttendance.filter(a => a.status.includes('Cuti') || a.status.includes('Sakit')).length;
   const attendanceRate = totalDays > 0 ? Math.round(((hadirDays + lewatDays) / totalDays) * 100) : 0;
 
   const handlePrintAttendance = () => window.print();
@@ -227,7 +260,6 @@ export default function TetapanGuruPage() {
     }
   };
 
-  // MUAT NAIK PELBAGAI SIJIL (Maks 3 Fail, Saiz Keseluruhan Maks 5MB)
   const handleCertUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -284,7 +316,7 @@ export default function TetapanGuruPage() {
   };
 
   // =========================================================================
-  // FUNGSI UTAMA PROSES SIMPAN DATA KE SUPABASE (LAJUR DISAHKAN SAHAJA)
+  // FUNGSI UTAMA PROSES SIMPAN DATA KE SUPABASE (TERMASUK PREF SISTEM)
   // =========================================================================
   const handleSave = async () => {
     setToastMessage(null);
@@ -304,12 +336,18 @@ export default function TetapanGuruPage() {
     try {
       if (!userId) throw new Error('Sesi log masuk tidak sah atau telah tamat.');
 
-      // Gabungkan kesemua URL fail menjadi 1 string berpisah koma
       const combinedCertsUrl = certificates.length > 0 ? certificates.map(c => c.name).join(',') : null;
-
       const cleanVal = (val: any) => (val === undefined || val === '') ? null : val;
 
-      // HANYA MENGGUNAKAN LAJUR YASAS YANG DIPASTIKAN WUJUD DALAM SCHEMA PROFILES
+      // Himpunkan Tetapan Sistem / Notifikasi
+      const prefsData = {
+        notifHadir,
+        notifEmail,
+        notifPeringatanHarian,
+        qariAudio,
+        quranFontSize
+      };
+
       const updateData = {
         full_name: cleanVal(namaPenuh),
         phone: cleanVal(noTelefon),
@@ -318,22 +356,15 @@ export default function TetapanGuruPage() {
         highest_education: cleanVal(tahapKelulusan),
         specialization: cleanVal(bidang),
         address: cleanVal(biodata),
-        certificate_docs: combinedCertsUrl
+        certificate_docs: combinedCertsUrl,
+        system_prefs: prefsData
       };
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', userId);
-
-      if (profileError) {
-        throw new Error(profileError.message || 'Gagal menyimpan ke profil.');
-      }
+      const { error: profileError } = await supabase.from('profiles').update(updateData).eq('id', userId);
+      if (profileError) throw new Error(profileError.message || 'Gagal menyimpan ke profil.');
 
       if (kelasSeliaan) {
-        try { 
-          await supabase.from('classes').update({ teacher_id: userId }).eq('id', kelasSeliaan); 
-        } catch (e) {}
+        try { await supabase.from('classes').update({ teacher_id: userId }).eq('id', kelasSeliaan); } catch (e) {}
       }
 
       if (activeTab === 'keselamatan' && newPassword) {
@@ -344,7 +375,9 @@ export default function TetapanGuruPage() {
       }
 
       window.dispatchEvent(new Event('avatarUpdated'));
-      setToastMessage({ type: 'success', text: 'Alhamdulillah, maklumat & dokumen berjaya disimpan!' });
+      window.dispatchEvent(new Event('preferencesUpdated'));
+      
+      setToastMessage({ type: 'success', text: 'Alhamdulillah, maklumat & tetapan berjaya disimpan ke pangkalan data!' });
 
       await fetchTeacherProfile();
 
@@ -372,36 +405,19 @@ export default function TetapanGuruPage() {
         
         {/* FIXED TOAST NOTIFICATION */}
         {toastMessage && (
-          <div style={{
-            position: 'fixed',
-            top: '80px',
-            right: '24px',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.65rem',
-            padding: '1rem 1.35rem',
-            borderRadius: '12px',
-            background: toastMessage.type === 'success' ? '#059669' : '#dc2626',
-            color: '#ffffff',
-            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.25)',
-            fontWeight: 700,
-            fontSize: '0.88rem',
+          <div className="no-print" style={{
+            position: 'fixed', top: '80px', right: '24px', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '0.65rem',
+            padding: '1rem 1.35rem', borderRadius: '12px', background: toastMessage.type === 'success' ? '#059669' : '#dc2626',
+            color: '#ffffff', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.25)', fontWeight: 700, fontSize: '0.88rem',
             animation: 'fadeInScale 0.2s ease-out'
           }}>
             {toastMessage.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
             <span>{toastMessage.text}</span>
-            <button 
-              onClick={() => setToastMessage(null)}
-              style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: '0.5rem', fontWeight: 'bold' }}
-            >
-              ✕
-            </button>
+            <button onClick={() => setToastMessage(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: '0.5rem', fontWeight: 'bold' }}>✕</button>
           </div>
         )}
 
-        {/* HEADER KAD */}
-        <div className={styles.headerCard}>
+        <div className={`no-print ${styles.headerCard}`}>
           <div className={styles.titleWrap}>
             <h1 className={styles.mainTitle}><Settings size={24} color="#0062ff" /> Tetapan Profil & Sistem</h1>
             <p className={styles.subtitle}>Urus maklumat peribadi, kelulusan akademik, rekod kehadiran guru dan notifikasi di sini.</p>
@@ -410,7 +426,7 @@ export default function TetapanGuruPage() {
 
         <div className={styles.layoutGrid}>
           {/* MENU NAVIGASI SISI */}
-          <div className={styles.sidebarMenu}>
+          <div className={`no-print ${styles.sidebarMenu}`}>
             <button className={`${styles.tabBtn} ${activeTab === 'profil' ? styles.activeTab : ''}`} onClick={() => { setActiveTab('profil'); setToastMessage(null); }}>
               <User size={18} /> Profil Peribadi
             </button>
@@ -421,7 +437,7 @@ export default function TetapanGuruPage() {
               <CalendarCheck size={18} /> Laporan Kehadiran Guru
             </button>
             <button className={`${styles.tabBtn} ${activeTab === 'notifikasi' ? styles.activeTab : ''}`} onClick={() => { setActiveTab('notifikasi'); setToastMessage(null); }}>
-              <Bell size={18} /> Tetapan Notifikasi & Kelas
+              <Bell size={18} /> Tetapan Notifikasi & Aplikasi
             </button>
             <button className={`${styles.tabBtn} ${activeTab === 'keselamatan' ? styles.activeTab : ''}`} onClick={() => { setActiveTab('keselamatan'); setToastMessage(null); }}>
               <Lock size={18} /> Keselamatan (Kata Laluan)
@@ -429,11 +445,11 @@ export default function TetapanGuruPage() {
           </div>
 
           {/* KANDUNGAN TAB AKTIF */}
-          <div className={styles.contentCard}>
+          <div className={`${styles.contentCard} ${activeTab === 'kehadiran' ? 'print-attendance-area' : 'no-print'}`}>
             
             {/* TAB 1: PROFIL PERIBADI */}
             {activeTab === 'profil' && (
-              <div>
+              <div className="no-print">
                 <h2 className={styles.sectionTitle}>
                   <span className={styles.sectionTitleText}><User size={18} color="#0062ff" /> Maklumat Asas Profil</span>
                 </h2>
@@ -482,7 +498,7 @@ export default function TetapanGuruPage() {
 
             {/* TAB 2: LATAR BELAKANG AKADEMIK */}
             {activeTab === 'akademik' && (
-              <div>
+              <div className="no-print">
                 <h2 className={styles.sectionTitle}>
                   <span className={styles.sectionTitleText}><GraduationCap size={18} color="#10b981" /> Maklumat Kelayakan Akademik</span>
                 </h2>
@@ -560,7 +576,6 @@ export default function TetapanGuruPage() {
                   </div>
                 )}
 
-                {/* BUTANG SIMPAN PERUBAHAN */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
                   <button 
                     type="button" 
@@ -580,50 +595,112 @@ export default function TetapanGuruPage() {
               </div>
             )}
 
-            {/* TAB 3: LAPORAN KEHADIRAN GURU */}
+            {/* TAB 3: KEHADIRAN GURU */}
             {activeTab === 'kehadiran' && (
-              <div>
-                <h2 className={styles.sectionTitle}>
-                  <span className={styles.sectionTitleText}><CalendarCheck size={18} color="#059669" /> Rekod Kehadiran Kendiri Guru</span>
-                  <button type="button" className={styles.btnPrintAttendance} onClick={handlePrintAttendance}>
-                    <Printer size={15} /> Cetak Laporan Kehadiran
-                  </button>
-                </h2>
+              <div className="printable-modal" style={{ background: '#fff', width: '100%' }}>
                 
-                <div className={styles.periodFilterBar}>
-                  <div className={styles.periodButtonGroup}>
-                    <button type="button" className={`${styles.periodBtn} ${periodFilter === 'harian' ? styles.periodBtnActive : ''}`} onClick={() => setPeriodFilter('harian')}>Hari Ini</button>
-                    <button type="button" className={`${styles.periodBtn} ${periodFilter === 'mingguan' ? styles.periodBtnActive : ''}`} onClick={() => setPeriodFilter('mingguan')}>Mingguan</button>
-                    <button type="button" className={`${styles.periodBtn} ${periodFilter === 'bulanan' ? styles.periodBtnActive : ''}`} onClick={() => setPeriodFilter('bulanan')}>Bulanan</button>
-                    <button type="button" className={`${styles.periodBtn} ${periodFilter === 'tahunan' ? styles.periodBtnActive : ''}`} onClick={() => setPeriodFilter('tahunan')}>Tahunan</button>
+                {/* HEADER CETAKAN (Hanya dilihat masa print) */}
+                <div className="print-only" style={{ display: 'none', flexDirection: 'column', textAlign: 'center', marginBottom: '2rem', borderBottom: '2px solid #0f172a', paddingBottom: '1rem', paddingTop: '1rem' }}>
+                  <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.8rem', fontWeight: 800, color: '#0f172a' }}>Maahad Tahfiz HuffazPro Malaysia</h2>
+                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem', color: '#334155' }}>Laporan Kehadiran Guru</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#475569', marginTop: '1rem' }}>
+                    <span>Nama Guru: <strong>{namaPenuh}</strong></span>
+                    <span>Bulan / Tahun: <strong>{new Date().toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })}</strong></span>
                   </div>
                 </div>
 
+                <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+                  <h2 className={styles.sectionTitle} style={{ margin: 0 }}>
+                    <span className={styles.sectionTitleText}><CalendarCheck size={18} color="#059669" /> Rekod Kehadiran Kendiri Guru</span>
+                  </h2>
+                  <button 
+                    type="button" 
+                    onClick={handlePrintAttendance}
+                    style={{ 
+                      background: '#0f172a', color: '#fff', border: 'none', padding: '0.55rem 1rem', 
+                      borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', 
+                      display: 'inline-flex', alignItems: 'center', gap: '6px' 
+                    }}
+                  >
+                    <Printer size={15} /> Cetak Laporan
+                  </button>
+                </div>
+                
+                <div className="no-print" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+                  {['harian', 'mingguan', 'bulanan', 'tahunan'].map(f => (
+                    <button 
+                      key={f} 
+                      onClick={() => setPeriodFilter(f as any)}
+                      style={{ 
+                        background: periodFilter === f ? '#0062ff' : '#f8fafc', 
+                        color: periodFilter === f ? '#fff' : '#64748b', 
+                        border: periodFilter === f ? '1px solid #0062ff' : '1px solid #e2e8f0',
+                        padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
+                        textTransform: 'capitalize'
+                      }}
+                    >
+                      {f === 'harian' ? 'Hari Ini' : f}
+                    </button>
+                  ))}
+                </div>
+
                 {allAttendanceLogs.length === 0 ? (
-                  <div style={{ padding: '3rem 2rem', textAlign: 'center', color: '#64748b' }}>Tiada rekod log kehadiran yang direkodkan buat masa ini.</div>
+                  <div style={{ padding: '3rem 2rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                    Tiada rekod log kehadiran yang direkodkan buat masa ini.
+                  </div>
                 ) : (
                   <>
-                    <div className={styles.attSummaryGrid}>
-                      <div className={styles.attSummaryCard}><p className={styles.attSummaryLabel}>Kadar Kehadiran</p><p className={styles.attSummaryVal} style={{ color: '#059669' }}>{attendanceRate}%</p></div>
-                      <div className={styles.attSummaryCard}><p className={styles.attSummaryLabel}>Hadir</p><p className={styles.attSummaryVal}>{hadirDays} Hari</p></div>
-                      <div className={styles.attSummaryCard}><p className={styles.attSummaryLabel}>Lewat</p><p className={styles.attSummaryVal} style={{ color: '#d97706' }}>{lewatDays} Hari</p></div>
-                      <div className={styles.attSummaryCard}><p className={styles.attSummaryLabel}>Cuti / Sakit</p><p className={styles.attSummaryVal} style={{ color: '#64748b' }}>{cutiDays} Hari</p></div>
+                    <div className="no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
+                        <p style={{ margin: '0 0 0.2rem 0', fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>Kadar Kehadiran</p>
+                        <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#059669' }}>{attendanceRate}%</p>
+                      </div>
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
+                        <p style={{ margin: '0 0 0.2rem 0', fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>Hadir / Bertugas</p>
+                        <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#0f172a' }}>{hadirDays} Hari</p>
+                      </div>
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
+                        <p style={{ margin: '0 0 0.2rem 0', fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>Lewat Hadir</p>
+                        <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#d97706' }}>{lewatDays} Hari</p>
+                      </div>
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem' }}>
+                        <p style={{ margin: '0 0 0.2rem 0', fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>Cuti / Sakit</p>
+                        <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#64748b' }}>{cutiDays} Hari</p>
+                      </div>
                     </div>
 
-                    <div className={styles.attTableWrapper}>
-                      <table className={styles.attTable}>
+                    <div className="print-area" style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                      <table className="print-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                         <thead>
-                          <tr><th>Tarikh & Hari</th><th>Waktu Masuk</th><th>Waktu Keluar</th><th>Tempoh Bertugas</th><th>Status</th><th>Catatan</th></tr>
+                          <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
+                            <th style={{ padding: '0.85rem 1rem' }}>Tarikh & Hari</th>
+                            <th style={{ padding: '0.85rem 1rem' }}>Waktu Masuk</th>
+                            <th style={{ padding: '0.85rem 1rem' }}>Waktu Keluar</th>
+                            <th style={{ padding: '0.85rem 1rem' }}>Tempoh Bertugas</th>
+                            <th style={{ padding: '0.85rem 1rem' }}>Status</th>
+                            <th style={{ padding: '0.85rem 1rem' }}>Catatan</th>
+                          </tr>
                         </thead>
                         <tbody>
                           {displayedAttendance.map((rec) => (
-                            <tr key={rec.id}>
-                              <td><strong>{rec.tarikh}</strong><div style={{ fontSize: '0.75rem', color: '#64748b' }}>{rec.hari}</div></td>
-                              <td><span style={{ fontWeight: 600 }}>{rec.masaMasuk}</span></td>
-                              <td><span style={{ fontWeight: 600 }}>{rec.masaKeluar}</span></td>
-                              <td>{rec.jumlahJam}</td>
-                              <td><span className={rec.status === 'Hadir' ? styles.badgeHadir : rec.status === 'Lewat' ? styles.badgeLewat : styles.badgeCuti}>{rec.status}</span></td>
-                              <td>{rec.catatan}</td>
+                            <tr key={rec.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '0.85rem 1rem' }}>
+                                <strong style={{ color: '#0f172a' }}>{rec.tarikh}</strong>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{rec.hari}</div>
+                              </td>
+                              <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{rec.masaMasuk}</td>
+                              <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{rec.masaKeluar}</td>
+                              <td style={{ padding: '0.85rem 1rem' }}>{rec.jumlahJam}</td>
+                              <td style={{ padding: '0.85rem 1rem' }}>
+                                <span style={{ 
+                                  padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700,
+                                  background: rec.status.includes('Hadir') ? '#dcfce7' : rec.status.includes('Lewat') ? '#fef3c7' : '#f1f5f9',
+                                  color: rec.status.includes('Hadir') ? '#166534' : rec.status.includes('Lewat') ? '#b45309' : '#475569',
+                                }}>
+                                  {rec.status}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.85rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>{rec.catatan}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -634,26 +711,57 @@ export default function TetapanGuruPage() {
               </div>
             )}
 
-            {/* TAB 4: NOTIFIKASI & KELAS */}
+            {/* TAB 4: NOTIFIKASI & TETAPAN SISTEM */}
             {activeTab === 'notifikasi' && (
-              <div>
-                <h2 className={styles.sectionTitle}><span className={styles.sectionTitleText}><Bell size={18} color="#f59e0b" /> Tetapan Notifikasi & Kelas</span></h2>
+              <div className="no-print">
+                <h2 className={styles.sectionTitle}>
+                  <span className={styles.sectionTitleText}><Bell size={18} color="#f59e0b" /> Tetapan Notifikasi & Aplikasi</span>
+                </h2>
                 
-                <div className={styles.formGroup} style={{ marginBottom: '1.75rem' }}>
-                  <label className={styles.label}>Pilihan Kelas Seliaan Utama (Tasmik)</label>
-                  <select className={styles.input} value={kelasSeliaan} onChange={(e) => setKelasSeliaan(e.target.value)}>
+                {/* Bahagian 1: Pengurusan Kelas */}
+                <h3 style={{ fontSize: '0.9rem', color: '#1e293b', fontWeight: 700, marginTop: '1rem', marginBottom: '0.75rem' }}>Bahagian 1: Pengurusan Kelas</h3>
+                <div className={styles.formGroup} style={{ marginBottom: '1.75rem', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <label className={styles.label} style={{ fontSize: '0.85rem' }}>Pilihan Kelas Seliaan Utama (Tasmik)</label>
+                  <select className={styles.input} value={kelasSeliaan} onChange={(e) => setKelasSeliaan(e.target.value)} style={{ marginTop: '0.5rem' }}>
                     <option value="">-- Pilih Kelas Seliaan --</option>
                     {senaraiKelas.map((cls) => (
                       <option key={cls.id} value={cls.id}>{cls.name}</option>
                     ))}
                   </select>
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Nota: Senarai pelajar dalam dashboard anda akan dipaparkan mengikut pilihan kelas di atas.</p>
                 </div>
 
-                <div className={styles.toggleList}>
-                  <div className={styles.toggleItem}>
-                    <div className={styles.toggleInfo}>
-                      <p className={styles.toggleTitle}>Notifikasi Pelajar Hadir (Bilik Live)</p>
-                      <p className={styles.toggleDesc}>Paparkan amaran loceng apabila pelajar menyertai bilik tasmik online.</p>
+                {/* Bahagian 2: Preferensi Visual & Audio */}
+                <h3 style={{ fontSize: '0.9rem', color: '#1e293b', fontWeight: 700, marginTop: '2rem', marginBottom: '0.75rem' }}>Bahagian 2: Preferensi Visual & Audio Al-Quran</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.75rem' }}>
+                  <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <label className={styles.label} style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Volume2 size={16} color="#0062ff" /> Suara Qari (Audio Bacaan)</label>
+                    <select className={styles.input} value={qariAudio} onChange={(e) => setQariAudio(e.target.value)} style={{ marginTop: '0.5rem' }}>
+                      <option value="ar.alafasy">Mishary Rashid Alafasy</option>
+                      <option value="ar.abdulbasit">Abdul Baset Abdul Samad</option>
+                      <option value="ar.sudais">Abdurrahmaan As-Sudais</option>
+                      <option value="ar.husary">Mahmoud Khalil Al-Husary</option>
+                    </select>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <label className={styles.label} style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Type size={16} color="#0062ff" /> Saiz Tulisan Al-Quran Lalai</label>
+                    <select className={styles.input} value={quranFontSize} onChange={(e) => setQuranFontSize(e.target.value)} style={{ marginTop: '0.5rem' }}>
+                      <option value="Kecil">Kecil</option>
+                      <option value="Biasa">Sederhana (Biasa)</option>
+                      <option value="Besar">Besar</option>
+                      <option value="Sangat Besar">Sangat Besar</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Bahagian 3: Notifikasi Automasi */}
+                <h3 style={{ fontSize: '0.9rem', color: '#1e293b', fontWeight: 700, marginTop: '2rem', marginBottom: '0.75rem' }}>Bahagian 3: Tetapan Notifikasi & Automasi</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <div>
+                      <p style={{ margin: '0 0 0.3rem 0', fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>Notifikasi Pelajar Hadir (Bilik Live)</p>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Paparkan amaran dan bunyikan loceng apabila pelajar menyertai bilik tasmik online.</p>
                     </div>
                     <label className={styles.switch}>
                       <input type="checkbox" checked={notifHadir} onChange={(e) => setNotifHadir(e.target.checked)} />
@@ -661,40 +769,54 @@ export default function TetapanGuruPage() {
                     </label>
                   </div>
 
-                  <div className={styles.toggleItem}>
-                    <div className={styles.toggleInfo}>
-                      <p className={styles.toggleTitle}>Laporan Peringatan Bulanan (E-mel)</p>
-                      <p className={styles.toggleDesc}>Hantar salinan ringkasan rekod hafazan kohort ke e-mel setiap hujung bulan.</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <div>
+                      <p style={{ margin: '0 0 0.3rem 0', fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>Peringatan Tasmik Harian (Auto SMS/Push)</p>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Hantar peringatan mesra secara automatik kepada pelajar setiap pagi untuk menghafal.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input type="checkbox" checked={notifPeringatanHarian} onChange={(e) => setNotifPeringatanHarian(e.target.checked)} />
+                      <span className={styles.slider}></span>
+                    </label>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <div>
+                      <p style={{ margin: '0 0 0.3rem 0', fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>Laporan Peringatan Bulanan (E-mel)</p>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Hantar salinan ringkasan rekod hafazan kohort ke e-mel anda setiap hujung bulan.</p>
                     </div>
                     <label className={styles.switch}>
                       <input type="checkbox" checked={notifEmail} onChange={(e) => setNotifEmail(e.target.checked)} />
                       <span className={styles.slider}></span>
                     </label>
                   </div>
+                  
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
                   <button 
                     type="button" 
                     onClick={handleSave} 
                     disabled={isSaving}
                     style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
                       background: isSaving ? '#94a3b8' : '#0062ff', color: '#ffffff', border: 'none',
-                      padding: '0.75rem 1.75rem', borderRadius: '8px', fontSize: '0.9rem', fontWeight: 700,
-                      cursor: isSaving ? 'not-allowed' : 'pointer'
+                      padding: '0.85rem 2rem', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 700,
+                      cursor: isSaving ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(0, 98, 255, 0.25)'
                     }}
                   >
-                    {isSaving ? <><Loader2 size={18} className="animate-spin" /> Menyimpan...</> : <><Save size={18} /> Simpan Perubahan</>}
+                    {isSaving ? <><Loader2 size={18} className="animate-spin" /> Menyimpan...</> : <><Send size={18} /> Simpan Tetapan Aplikasi</>}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* TAB 5: KESELAMATAN */}
+            {/* TAB 5: KESELAMATAN (KATA LALUAN) */}
             {activeTab === 'keselamatan' && (
-              <div>
-                <h2 className={styles.sectionTitle}><span className={styles.sectionTitleText}><Lock size={18} color="#ef4444" /> Keselamatan Kata Laluan</span></h2>
+              <div className="no-print">
+                <h2 className={styles.sectionTitle}>
+                  <span className={styles.sectionTitleText}><Lock size={18} color="#ef4444" /> Keselamatan Kata Laluan</span>
+                </h2>
                 
                 <div className={styles.formGrid}>
                   <div className={styles.formGroup}>
@@ -724,9 +846,64 @@ export default function TetapanGuruPage() {
                 </div>
               </div>
             )}
+
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        .spinIcon { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes fadeInScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
+        
+        /* CSS Khusus Untuk Pengalaman Cetakan Yang Baik */
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          
+          .printable-modal, .printable-modal * {
+            visibility: visible !important;
+          }
+          
+          .printable-modal {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          
+          .no-print {
+            display: none !important;
+          }
+          
+          .print-only {
+            display: flex !important;
+          }
+          
+          .print-area {
+            overflow: visible !important;
+            border: none !important;
+          }
+          
+          .print-table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          
+          .print-table th, .print-table td {
+            border: 1px solid #334155 !important;
+            padding: 10px !important;
+            color: #000 !important;
+          }
+          
+          .print-table th {
+            background-color: #f1f5f9 !important;
+          }
+        }
+      `}</style>
     </DashboardGuruLayout>
   );
 }

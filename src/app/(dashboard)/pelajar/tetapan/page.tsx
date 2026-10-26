@@ -5,8 +5,13 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { supabase } from '@/lib/supabase';
 import { 
   Settings, User, Bell, Mic, Camera, Save, 
-  Volume2, CheckCircle2, ShieldCheck, Mail, ClipboardList, Loader2
+  Volume2, CheckCircle2, ShieldCheck, Mail, ClipboardList, Loader2, AlertCircle, PlayCircle, Video as VideoIcon
 } from 'lucide-react';
+
+interface DeviceInfo {
+  deviceId: string;
+  label: string;
+}
 
 export default function TetapanPelajarPage() {
   const [activeTab, setActiveTab] = useState<'profil' | 'notifikasi' | 'audio' | 'kehadiran'>('profil');
@@ -45,27 +50,34 @@ export default function TetapanPelajarPage() {
     kurangkanHingar: true
   });
 
+  // STATE SENARAI PERANTI SEBENAR (DINAMIK)
+  const [audioInputs, setAudioInputs] = useState<DeviceInfo[]>([]);
+  const [videoInputs, setVideoInputs] = useState<DeviceInfo[]>([]);
+  const [audioOutputs, setAudioOutputs] = useState<DeviceInfo[]>([]);
+
+  // STATE UJIAN PERANTI SECARA LIVE
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isVideoTesting, setIsVideoTesting] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [isAudioTesting, setIsAudioTesting] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const videoStreamRef = useRef<MediaStream | null>(null);
+
   // STATE UNTUK KEHADIRAN
   const [kehadiranRecords, setKehadiranRecords] = useState<any[]>([]);
 
-  // 1. PANGGIL DATA DARI SUPABASE & LOCAL STORAGE SEMASA PAGE DIBUKA
+  // 1. PANGGIL DATA DARI SUPABASE (TIADA LOCAL STORAGE)
   useEffect(() => {
     const fetchUserData = async () => {
-      let currentStudentName = '';
-
       try {
-        // A. Tarik profil terus dari Supabase Auth & Profiles Table
         const { data: authData } = await supabase.auth.getUser();
         if (authData?.user) {
           const uId = authData.user.id;
-          const { data: dbProfile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', uId)
-            .single();
+          
+          const { data: dbProfile } = await supabase.from('profiles').select('*').eq('id', uId).single();
 
           if (dbProfile) {
-            currentStudentName = dbProfile.full_name || '';
             setProfile({
               id: dbProfile.id,
               nama: dbProfile.full_name || '',
@@ -74,43 +86,146 @@ export default function TetapanPelajarPage() {
               kataLaluan: '',
               avatarUrl: dbProfile.avatar_url || ''
             });
+
+            // Ekstrak tetapan notifikasi dan AV dari lajur system_prefs (JSONB)
+            if (dbProfile.system_prefs) {
+              const prefs = typeof dbProfile.system_prefs === 'string' ? JSON.parse(dbProfile.system_prefs) : dbProfile.system_prefs;
+              if (prefs.notifSettings) setNotifSettings(prefs.notifSettings);
+              if (prefs.avSettings) setAvSettings(prefs.avSettings);
+            }
           }
 
-          // Tarik rekod kehadiran pelajar dari Supabase
-          const { data: att } = await supabase
-            .from('attendance')
-            .select('*')
-            .eq('user_id', uId)
-            .order('created_at', { ascending: false });
-
+          // Tarik rekod kehadiran
+          const { data: att } = await supabase.from('attendance').select('*').eq('user_id', uId).order('created_at', { ascending: false });
           if (att && att.length > 0) {
             setKehadiranRecords(att);
-          }
-        } else {
-          // Fallback sekiranya sesi luar talian
-          const savedProfile = localStorage.getItem('huffazpro_student_profile');
-          if (savedProfile) {
-            const parsedProfile = JSON.parse(savedProfile);
-            setProfile(parsedProfile);
-            currentStudentName = parsedProfile.nama;
           }
         }
       } catch (err) {
         console.error('Ralat menarik maklumat pelajar:', err);
       }
-
-      // B. Tarik tetapan notifikasi & A/V
-      const savedNotif = localStorage.getItem('huffazpro_student_notif');
-      if (savedNotif) setNotifSettings(JSON.parse(savedNotif));
-
-      const savedAV = localStorage.getItem('huffazpro_student_av');
-      if (savedAV) setAvSettings(JSON.parse(savedAV));
     };
-
     fetchUserData();
   }, []);
 
-  // FUNGSI KOMPRESI GAMBAR PROFIL
+  // 2. KESAN PERANTI AUDIO & VIDEO SEBENAR PELAJAR
+  useEffect(() => {
+    const getDevices = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        
+        setAudioInputs(devices.filter(d => d.kind === 'audioinput').map(d => ({ deviceId: d.deviceId, label: d.label || 'Mikrofon Sistem' })));
+        setAudioOutputs(devices.filter(d => d.kind === 'audiooutput').map(d => ({ deviceId: d.deviceId, label: d.label || 'Pembesar Suara Sistem' })));
+        setVideoInputs(devices.filter(d => d.kind === 'videoinput').map(d => ({ deviceId: d.deviceId, label: d.label || 'Kamera Sistem' })));
+      } catch (err) {
+        console.warn("Kebenaran peranti ditolak.", err);
+      }
+    };
+    getDevices();
+  }, []);
+
+  // BERSIHKAN UJIAN PERANTI JIKA TUKAR TAB
+  useEffect(() => {
+    return () => {
+      stopVideoTest();
+      stopAudioTest();
+    };
+  }, [activeTab]);
+
+  // ========================================================
+  // FUNGSI UJIAN PERANTI SECARA LANGSUNG (LIVE DEVICE TEST)
+  // ========================================================
+  const stopVideoTest = () => {
+    if (videoStreamRef.current) {
+      videoStreamRef.current.getTracks().forEach(t => t.stop());
+      videoStreamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setIsVideoTesting(false);
+  };
+
+  const startVideoTest = async () => {
+    try {
+      stopVideoTest();
+      const constraints = avSettings.kamera !== 'default' ? { deviceId: { exact: avSettings.kamera } } : true;
+      const stream = await navigator.mediaDevices.getUserMedia({ video: constraints });
+      videoStreamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setIsVideoTesting(true);
+    } catch (err) {
+      alert("Gagal mengakses kamera. Sila pastikan pelayar web anda membenarkan akses kamera.");
+    }
+  };
+
+  const stopAudioTest = () => {
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(t => t.stop());
+      audioStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    setIsAudioTesting(false);
+    setAudioLevel(0);
+  };
+
+  const startAudioTest = async () => {
+    try {
+      stopAudioTest();
+      const constraints = avSettings.mikrofon !== 'default' ? { deviceId: { exact: avSettings.mikrofon } } : true;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: constraints });
+      audioStreamRef.current = stream;
+      
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioContext();
+      audioContextRef.current = audioCtx;
+      
+      const analyser = audioCtx.createAnalyser();
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyser.fftSize = 256;
+      
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      const updateLevel = () => {
+        if (!audioContextRef.current) return;
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+        const average = sum / bufferLength;
+        setAudioLevel(average);
+        requestAnimationFrame(updateLevel);
+      };
+      updateLevel();
+      setIsAudioTesting(true);
+    } catch (err) {
+      alert("Gagal mengakses mikrofon. Sila pastikan pelayar web membenarkan akses mikrofon.");
+    }
+  };
+
+  const playTestSound = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // Nota D5
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {
+      console.warn("AudioContext tidak disokong", e);
+    }
+  };
+
+  // PENGENDALI MUAT NAIK GAMBAR PROFIL
   const compressImage = (file: File, callback: (base64: string) => void) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -125,92 +240,73 @@ export default function TetapanPelajarPage() {
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
-        callback(compressedBase64);
+        callback(canvas.toDataURL('image/jpeg', 0.85));
       };
     };
   };
 
-  // PENGENDALI MUAT NAIK GAMBAR PROFIL
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Saiz gambar melebihi had 2MB. Sila pilih gambar yang lebih kecil.");
+      return;
+    }
     setIsUploadingAvatar(true);
     compressImage(file, async (base64String) => {
       setProfile(prev => ({ ...prev, avatarUrl: base64String }));
-
-      // Kemas kini secara langsung ke Supabase jika akaun berdaftar
-      if (profile.id) {
-        try {
-          await supabase
-            .from('profiles')
-            .update({ avatar_url: base64String })
-            .eq('id', profile.id);
-        } catch (err) {
-          console.error('Ralat mengemas kini gambar ke Supabase:', err);
-        }
-      }
-
-      // Simpan salinan ke localStorage
-      const savedProfile = JSON.parse(localStorage.getItem('huffazpro_student_profile') || '{}');
-      localStorage.setItem('huffazpro_student_profile', JSON.stringify({ ...savedProfile, avatarUrl: base64String }));
-
       setIsUploadingAvatar(false);
-      setSaveMessage('Gambar profil berjaya dikemaskini!');
-      setTimeout(() => setSaveMessage(''), 3000);
+      setSaveMessage('Gambar profil dipilih! Sila klik butang "Simpan Profil" untuk kemas kini.');
+      setTimeout(() => setSaveMessage(''), 4000);
     });
   };
 
-  // FUNGSI UPDATE TEXT JUSTIFIKASI
   const handleUpdateJustifikasi = (id: string, text: string) => {
-    const updated = kehadiranRecords.map(k => k.id === id ? { ...k, justifikasi: text } : k);
-    setKehadiranRecords(updated);
+    setKehadiranRecords(kehadiranRecords.map(k => k.id === id ? { ...k, remarks: text } : k));
   };
 
-  // 2. FUNGSI SIMPAN DATA KE SUPABASE & LOCAL STORAGE
+  // 3. FUNGSI SIMPAN DATA KE SUPABASE
   const handleSave = async () => {
     setIsSaving(true);
     setSaveMessage('');
 
     try {
-      if (activeTab === 'profil') {
-        // Simpan ke Supabase Profiles Table
-        if (profile.id) {
-          const updatePayload: any = {
-            full_name: profile.nama,
-            phone: profile.telefon,
-            avatar_url: profile.avatarUrl
-          };
+      if (activeTab === 'profil' || activeTab === 'notifikasi' || activeTab === 'audio') {
+        if (!profile.id) throw new Error("ID Pengguna tidak dijumpai.");
 
-          await supabase.from('profiles').update(updatePayload).eq('id', profile.id);
+        const updatePayload: any = {
+          full_name: profile.nama,
+          phone: profile.telefon,
+          avatar_url: profile.avatarUrl,
+          system_prefs: { notifSettings, avSettings }
+        };
 
-          // Kemas kini kata laluan sekiranya diisi
-          if (profile.kataLaluan) {
-            await supabase.auth.updateUser({ password: profile.kataLaluan });
-            setProfile(prev => ({ ...prev, kataLaluan: '' }));
-          }
+        const { error } = await supabase.from('profiles').update(updatePayload).eq('id', profile.id);
+        if (error) throw error;
+
+        if (activeTab === 'profil' && profile.kataLaluan) {
+          const { error: pwdErr } = await supabase.auth.updateUser({ password: profile.kataLaluan });
+          if (pwdErr) throw pwdErr;
+          setProfile(prev => ({ ...prev, kataLaluan: '' }));
         }
 
-        localStorage.setItem('huffazpro_student_profile', JSON.stringify(profile));
+        window.dispatchEvent(new Event('avatarUpdated'));
+      } 
+      else if (activeTab === 'kehadiran') {
+        const updates = kehadiranRecords.map(rec => 
+          supabase.from('attendance').update({ remarks: rec.remarks }).eq('id', rec.id)
+        );
+        await Promise.all(updates);
       }
 
-      if (activeTab === 'notifikasi') {
-        localStorage.setItem('huffazpro_student_notif', JSON.stringify(notifSettings));
-      }
-
-      if (activeTab === 'audio') {
-        localStorage.setItem('huffazpro_student_av', JSON.stringify(avSettings));
-      }
-
-      if (activeTab === 'kehadiran') {
-        localStorage.setItem('huffazpro_student_attendance', JSON.stringify(kehadiranRecords));
-      }
-
-      setSaveMessage(activeTab === 'kehadiran' ? 'Justifikasi kehadiran berjaya disimpan!' : 'Tetapan berjaya disimpan!');
+      setSaveMessage(
+        activeTab === 'kehadiran' ? 'Justifikasi kehadiran berjaya disimpan!' : 
+        activeTab === 'notifikasi' ? 'Tetapan notifikasi berjaya dikemas kini!' :
+        activeTab === 'audio' ? 'Konfigurasi peranti berjaya disimpan!' :
+        'Maklumat profil berjaya disimpan!'
+      );
     } catch (err: any) {
-      console.error('Ralat semasa menyimpan:', err);
-      setSaveMessage(`Ralat menyimpan: ${err.message || 'Sila cuba lagi'}`);
+      alert(`Ralat menyimpan: ${err.message || 'Sila cuba lagi'}`);
     } finally {
       setIsSaving(false);
       setTimeout(() => setSaveMessage(''), 3000);
@@ -236,28 +332,16 @@ export default function TetapanPelajarPage() {
           
           {/* KIRI: MENU TAB */}
           <div className="settings-sidebar">
-            <button 
-              className={`tab-btn ${activeTab === 'profil' ? 'active' : ''}`}
-              onClick={() => setActiveTab('profil')}
-            >
+            <button className={`tab-btn ${activeTab === 'profil' ? 'active' : ''}`} onClick={() => { setActiveTab('profil'); setSaveMessage(''); }}>
               <User size={18} /> Profil Pelajar
             </button>
-            <button 
-              className={`tab-btn ${activeTab === 'kehadiran' ? 'active' : ''}`}
-              onClick={() => setActiveTab('kehadiran')}
-            >
+            <button className={`tab-btn ${activeTab === 'kehadiran' ? 'active' : ''}`} onClick={() => { setActiveTab('kehadiran'); setSaveMessage(''); }}>
               <ClipboardList size={18} /> Rekod Kehadiran
             </button>
-            <button 
-              className={`tab-btn ${activeTab === 'notifikasi' ? 'active' : ''}`}
-              onClick={() => setActiveTab('notifikasi')}
-            >
+            <button className={`tab-btn ${activeTab === 'notifikasi' ? 'active' : ''}`} onClick={() => { setActiveTab('notifikasi'); setSaveMessage(''); }}>
               <Bell size={18} /> Peringatan & Notifikasi
             </button>
-            <button 
-              className={`tab-btn ${activeTab === 'audio' ? 'active' : ''}`}
-              onClick={() => setActiveTab('audio')}
-            >
+            <button className={`tab-btn ${activeTab === 'audio' ? 'active' : ''}`} onClick={() => { setActiveTab('audio'); setSaveMessage(''); }}>
               <Mic size={18} /> Audio & Bilik Tasmik
             </button>
           </div>
@@ -265,7 +349,6 @@ export default function TetapanPelajarPage() {
           {/* KANAN: KANDUNGAN TAB */}
           <div className="settings-content">
             
-            {/* ALERT BERJAYA SIMPAN */}
             {saveMessage && (
               <div className="save-alert">
                 <CheckCircle2 size={18} /> {saveMessage}
@@ -278,7 +361,6 @@ export default function TetapanPelajarPage() {
                 <h2 className="pane-title">Maklumat Peribadi</h2>
                 <p className="pane-desc">Kemas kini maklumat profil dan foto pengenalan diri anda.</p>
                 
-                {/* BAHAGIAN MUAT NAIK GAMBAR PROFIL */}
                 <div className="avatar-upload-section">
                   <div className="avatar-wrapper">
                     <div className="avatar-display">
@@ -293,22 +375,10 @@ export default function TetapanPelajarPage() {
                       )}
                     </div>
                     
-                    <button 
-                      type="button" 
-                      className="btn-camera-badge"
-                      onClick={() => avatarInputRef.current?.click()}
-                      title="Muat naik foto profil"
-                    >
+                    <button type="button" className="btn-camera-badge" onClick={() => avatarInputRef.current?.click()} title="Muat naik foto profil">
                       <Camera size={15} />
                     </button>
-
-                    <input 
-                      type="file" 
-                      ref={avatarInputRef} 
-                      accept="image/*" 
-                      style={{ display: 'none' }} 
-                      onChange={handleAvatarUpload} 
-                    />
+                    <input type="file" ref={avatarInputRef} accept="image/png, image/jpeg, image/webp" style={{ display: 'none' }} onChange={handleAvatarUpload} />
                   </div>
 
                   <div className="avatar-text-info">
@@ -323,10 +393,10 @@ export default function TetapanPelajarPage() {
                     <input type="text" value={profile.nama} onChange={(e) => setProfile({...profile, nama: e.target.value})} className="form-input" />
                   </div>
                   <div className="form-group">
-                    <label>E-mel Pelajar</label>
+                    <label>E-mel Pelajar (Log Masuk)</label>
                     <div className="input-with-icon">
                       <Mail size={16} className="input-icon" />
-                      <input type="email" value={profile.email} onChange={(e) => setProfile({...profile, email: e.target.value})} className="form-input has-icon" />
+                      <input type="email" value={profile.email} disabled style={{ background: '#f1f5f9', color: '#64748b' }} className="form-input has-icon" />
                     </div>
                   </div>
                   <div className="form-group">
@@ -334,7 +404,7 @@ export default function TetapanPelajarPage() {
                     <input type="text" value={profile.telefon} onChange={(e) => setProfile({...profile, telefon: e.target.value})} className="form-input" />
                   </div>
                   <div className="form-group">
-                    <label>Kata Laluan Sistem (Biarkan kosong jika tidak mahu tukar)</label>
+                    <label>Kata Laluan Sistem (Biarkan kosong jika tidak tukar)</label>
                     <div className="input-with-icon">
                       <ShieldCheck size={16} className="input-icon" />
                       <input type="password" value={profile.kataLaluan} onChange={(e) => setProfile({...profile, kataLaluan: e.target.value})} placeholder="Masukkan kata laluan baharu..." className="form-input has-icon" />
@@ -343,7 +413,7 @@ export default function TetapanPelajarPage() {
                 </div>
 
                 <div className="pane-footer">
-                  <button className="btn-save" onClick={handleSave} disabled={isSaving}>
+                  <button className="btn-save" onClick={handleSave} disabled={isSaving || isUploadingAvatar}>
                     {isSaving ? 'Menyimpan...' : <><Save size={18} /> Simpan Profil</>}
                   </button>
                 </div>
@@ -359,7 +429,7 @@ export default function TetapanPelajarPage() {
                 <div className="table-container">
                   <div className="table-header-row">
                     <div className="col-tarikh">Tarikh</div>
-                    <div className="col-masa">Masa</div>
+                    <div className="col-masa">Masa Masuk</div>
                     <div className="col-status">Status</div>
                     <div className="col-justifikasi">Justifikasi / Sebab</div>
                   </div>
@@ -372,8 +442,8 @@ export default function TetapanPelajarPage() {
                     ) : (
                       kehadiranRecords.map(rekod => (
                         <div key={rekod.id} className="table-row">
-                          <div className="col-tarikh font-semibold">{rekod.tarikh || rekod.date}</div>
-                          <div className="col-masa">{rekod.masa || rekod.time_in || rekod.timeIn || '-'}</div>
+                          <div className="col-tarikh font-semibold">{rekod.date || new Date(rekod.created_at).toLocaleDateString('ms-MY')}</div>
+                          <div className="col-masa">{rekod.time_in && rekod.time_in !== '-' ? rekod.time_in : '-'}</div>
                           <div className="col-status">
                             <span className={`status-badge status-${(rekod.status || '').replace(/\s+/g, '').toLowerCase()}`}>
                               {rekod.status}
@@ -383,7 +453,7 @@ export default function TetapanPelajarPage() {
                             {rekod.status !== 'Hadir' && rekod.status !== 'Hadir Fizikal' && rekod.status !== 'Hadir Online' ? (
                               <input 
                                 type="text"
-                                value={rekod.justifikasi || ''}
+                                value={rekod.remarks || ''}
                                 onChange={(e) => handleUpdateJustifikasi(rekod.id, e.target.value)}
                                 placeholder="Nyatakan sebab (Contoh: Demam panas)..."
                                 className="justifikasi-input"
@@ -482,45 +552,101 @@ export default function TetapanPelajarPage() {
             {activeTab === 'audio' && (
               <div className="tab-pane fade-in">
                 <h2 className="pane-title">Tetapan Audio & Video</h2>
-                <p className="pane-desc">Konfigurasi peranti mikrofon dan kamera sebelum memasuki Bilik Tasmik Live.</p>
+                <p className="pane-desc">Uji dan konfigurasi peranti mikrofon dan kamera sebelum memasuki Bilik Tasmik Live.</p>
                 
+                {audioInputs.length === 0 && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '1rem', borderRadius: '10px', color: '#dc2626', fontSize: '0.85rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <AlertCircle size={18} /> Sila benarkan akses kamera dan mikrofon pada pelayar web anda untuk menyenaraikan peranti yang tepat.
+                  </div>
+                )}
+
                 <div className="device-grid">
+                  {/* KAD MIKROFON */}
                   <div className="device-card">
                     <div className="device-header">
                       <Mic size={20} color="#0062ff" /> <h3>Mikrofon (Input)</h3>
                     </div>
-                    <select value={avSettings.mikrofon} onChange={(e) => setAvSettings({...avSettings, mikrofon: e.target.value})} className="form-select device-select">
+                    <select 
+                      value={avSettings.mikrofon} 
+                      onChange={(e) => {
+                        setAvSettings({...avSettings, mikrofon: e.target.value});
+                        if (isAudioTesting) stopAudioTest(); // Berhenti ujian jika tukar device
+                      }} 
+                      className="form-select device-select"
+                    >
                       <option value="default">Mikrofon Sistem (Lalai)</option>
-                      <option value="headset">Headset Microphone (Realtek)</option>
-                      <option value="usb">USB Condenser Mic</option>
+                      {audioInputs.map(device => (
+                        <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+                      ))}
                     </select>
-                    <button className="btn-test">Uji Mikrofon</button>
+                    
+                    <button className="btn-test" onClick={isAudioTesting ? stopAudioTest : startAudioTest} style={{ background: isAudioTesting ? '#fef2f2' : '#fff', color: isAudioTesting ? '#dc2626' : '#475569' }}>
+                      {isAudioTesting ? 'Berhenti Ujian' : 'Uji Mikrofon'}
+                    </button>
+                    
+                    {isAudioTesting && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Tahap Suara:</div>
+                        <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ 
+                            height: '100%', 
+                            width: `${Math.min((audioLevel / 100) * 100, 100)}%`, 
+                            background: audioLevel > 50 ? '#059669' : audioLevel > 20 ? '#d97706' : '#0062ff',
+                            transition: 'width 0.1s ease, background 0.2s ease'
+                          }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
+                  {/* KAD PEMBESAR SUARA */}
                   <div className="device-card">
                     <div className="device-header">
                       <Volume2 size={20} color="#0062ff" /> <h3>Pembesar Suara (Output)</h3>
                     </div>
                     <select value={avSettings.pembesarSuara} onChange={(e) => setAvSettings({...avSettings, pembesarSuara: e.target.value})} className="form-select device-select">
                       <option value="default">Pembesar Suara Sistem (Lalai)</option>
-                      <option value="headphones">Headphones (Realtek)</option>
+                      {audioOutputs.map(device => (
+                        <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+                      ))}
                     </select>
-                    <button className="btn-test">Uji Bunyi (Test Audio)</button>
+                    <button className="btn-test" onClick={playTestSound} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      <PlayCircle size={15} /> Uji Bunyi (Test Audio)
+                    </button>
                   </div>
 
+                  {/* KAD KAMERA */}
                   <div className="device-card">
                     <div className="device-header">
                       <Camera size={20} color="#0062ff" /> <h3>Kamera Web (Video)</h3>
                     </div>
-                    <select value={avSettings.kamera} onChange={(e) => setAvSettings({...avSettings, kamera: e.target.value})} className="form-select device-select">
-                      <option value="default">Kamera Web Bersepadu (Lalai)</option>
-                      <option value="obs">OBS Virtual Camera</option>
+                    <select 
+                      value={avSettings.kamera} 
+                      onChange={(e) => {
+                        setAvSettings({...avSettings, kamera: e.target.value});
+                        if (isVideoTesting) stopVideoTest(); // Berhenti ujian jika tukar device
+                      }} 
+                      className="form-select device-select"
+                    >
+                      <option value="default">Kamera Sistem (Lalai)</option>
+                      {videoInputs.map(device => (
+                        <option key={device.deviceId} value={device.deviceId}>{device.label}</option>
+                      ))}
                     </select>
-                    <button className="btn-test">Pratonton Kamera</button>
+                    <button className="btn-test" onClick={isVideoTesting ? stopVideoTest : startVideoTest} style={{ background: isVideoTesting ? '#fef2f2' : '#fff', color: isVideoTesting ? '#dc2626' : '#475569' }}>
+                      {isVideoTesting ? 'Berhenti Pratonton' : 'Pratonton Kamera'}
+                    </button>
+                    
+                    {isVideoTesting && (
+                      <div style={{ marginTop: '0.5rem', width: '100%', height: '140px', background: '#000', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <h3 className="sub-heading">Tetapan Kemasukan Bilik Live</h3>
+                <h3 className="sub-heading">Tetapan Kemasukan Bilik Live (Lalai)</h3>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '-0.5rem 0 1rem 0' }}>Tetapan ini akan diaplikasikan secara automatik setiap kali anda menyertai kelas Live.</p>
                 <div className="toggle-list">
                   <div className="toggle-item">
                     <div className="toggle-info">

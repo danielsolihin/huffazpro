@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { 
   Clock, Users, CheckCircle2, Award, 
   Video, FileSignature, Target, BarChart3, AlertTriangle, 
-  RefreshCw, Loader2
+  RefreshCw, Loader2, BookOpen, X
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -23,6 +23,14 @@ interface StudentQueueItem {
   isCompleted?: boolean;
 }
 
+interface ClassSummary {
+  id: string;
+  level: string;
+  name: string;
+  students: StudentQueueItem[];
+  waitingCount: number;
+}
+
 export default function GuruDashboardPage() {
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -34,11 +42,17 @@ export default function GuruDashboardPage() {
   const [waitingStudent, setWaitingStudent] = useState<any>(null);
   const [completedEvaluations, setCompletedEvaluations] = useState<any[]>([]);
   const [dynamicQueue, setDynamicQueue] = useState<StudentQueueItem[]>([]);
+  const [classesSummary, setClassesSummary] = useState<ClassSummary[]>([]);
+  const [liveStudents, setLiveStudents] = useState<StudentQueueItem[]>([]);
   const [totalStudents, setTotalStudents] = useState(0);
   
   // State Dinamik Statistik
   const [gradeStats, setGradeStats] = useState({ mumtaz: 0, jj: 0, jayyid: 0, maqbul: 0, rasib: 0 });
   const [issueStats, setIssueStats] = useState({ total: 0, tajwid: 0, kelancaran: 0, baris: 0, makhraj: 0 });
+
+  // State Modal
+  const [selectedClassForModal, setSelectedClassForModal] = useState<ClassSummary | null>(null);
+  const [showLiveStudentsModal, setShowLiveStudentsModal] = useState(false);
 
   // 1. JAM MASA NYATA
   useEffect(() => {
@@ -66,7 +80,7 @@ export default function GuruDashboardPage() {
       // B. Cari Kelas Yang Diajar Oleh Guru Ini
       const { data: myClasses } = await supabase
         .from('classes')
-        .select('id')
+        .select('*')
         .eq('teacher_name', currentTeacherName);
       
       const myClassIds = myClasses ? myClasses.map(c => c.id) : [];
@@ -78,7 +92,7 @@ export default function GuruDashboardPage() {
       if (myClassIds.length > 0) {
         const { data: studentsData, count } = await supabase
           .from('profiles')
-          .select('id, full_name, matrik_or_id', { count: 'exact' })
+          .select('id, full_name, matrik_or_id, class_id', { count: 'exact' })
           .ilike('role', '%elajar%')
           .in('class_id', myClassIds);
           
@@ -94,7 +108,7 @@ export default function GuruDashboardPage() {
 
       const { data: evals } = await supabase
         .from('evaluations')
-        .select('*, profiles!evaluations_student_id_fkey(full_name, matrik_or_id)')
+        .select('*, profiles!evaluations_student_id_fkey(full_name, matrik_or_id, class_id)')
         .eq('teacher_id', tId)
         .order('created_at', { ascending: false });
         
@@ -109,12 +123,12 @@ export default function GuruDashboardPage() {
         .eq('user_id', tId)
         .eq('is_read', false)
         .like('title', '%Bilik Live%')
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: false });
 
       if (liveNotifs && liveNotifs.length > 0) {
         const notif = liveNotifs[0];
         setWaitingStudent({
+          id: notif.sender_id,
           nama: notif.profiles?.full_name || 'Pelajar',
           avatar: notif.profiles?.avatar_url || '',
           masaMasuk: new Date(notif.created_at).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })
@@ -123,16 +137,19 @@ export default function GuruDashboardPage() {
         setWaitingStudent(null);
       }
 
-      // --- BINA GILIRAN DINAMIK ---
+      // --- BINA GILIRAN DINAMIK & RINGKASAN KELAS ---
       const queueList: StudentQueueItem[] = [];
       const processedNames = new Set<string>();
+      
+      // Untuk modal Live Students
+      const liveList: StudentQueueItem[] = [];
 
       // Masukkan senarai yang TELAH SELESAI
       todayEvals.forEach((ev: any) => {
         const studentName = ev.profiles?.full_name || 'Pelajar';
         if (!processedNames.has(studentName)) {
-          queueList.push({
-            id: ev.id,
+          const item: StudentQueueItem = {
+            id: ev.profiles?.id || ev.student_id,
             matrik: ev.profiles?.matrik_or_id || '-', 
             name: studentName,
             target: `${ev.surah || 'Al-Quran'}`,
@@ -140,7 +157,8 @@ export default function GuruDashboardPage() {
             status: `Selesai (${ev.gred})`,
             grade: ev.gred,
             isCompleted: true
-          });
+          };
+          queueList.push(item);
           processedNames.add(studentName);
         }
       });
@@ -148,20 +166,45 @@ export default function GuruDashboardPage() {
       // Masukkan baki pelajar (di bawah pantauan guru ini sahaja) yang BELUM SELESAI
       assignedStudents.forEach(p => {
         if (!processedNames.has(p.full_name)) {
-          queueList.push({
+          // Andaikata notifikasi live ada untuk pelajar ini, set type = live
+          const isLive = liveNotifs?.some(n => n.sender_id === p.id);
+          const item: StudentQueueItem = {
             id: p.id,
             matrik: p.matrik_or_id || 'Tiada Matrik', 
             name: p.full_name,
             target: 'Belum Ditetapkan',
-            type: 'fizikal',
-            status: 'Giliran Seterusnya',
+            type: isLive ? 'live' : 'fizikal',
+            status: isLive ? 'Menunggu Online' : 'Giliran Seterusnya',
             isCompleted: false
-          });
+          };
+          queueList.push(item);
+          if (isLive) liveList.push(item);
           processedNames.add(p.full_name);
         }
       });
 
       setDynamicQueue(queueList);
+      setLiveStudents(liveList);
+
+      // Bina ringkasan mengikut kelas
+      const classSummaries: ClassSummary[] = (myClasses || []).map(cls => {
+        const classStudents = assignedStudents.filter(s => s.class_id === cls.id);
+        const studentNamesInClass = new Set(classStudents.map(s => s.full_name));
+        
+        // Cari queue item untuk pelajar dalam kelas ini
+        const studentsInQueue = queueList.filter(q => studentNamesInClass.has(q.name));
+        const waitingCount = studentsInQueue.filter(q => !q.isCompleted).length;
+
+        return {
+          id: cls.id,
+          level: cls.level || 'Peringkat',
+          name: cls.name,
+          students: studentsInQueue,
+          waitingCount: waitingCount
+        };
+      });
+
+      setClassesSummary(classSummaries);
 
       // --- KIRA STATISTIK GRED & RALAT KESELURUHAN ---
       let mumtaz = 0, jj = 0, jayyid = 0, maqbul = 0, rasib = 0;
@@ -209,6 +252,101 @@ export default function GuruDashboardPage() {
   const completedCount = dynamicQueue.filter(item => item.isCompleted).length;
   const presentStudents = totalStudents;
 
+  const renderStudentList = (students: StudentQueueItem[]) => (
+    <div className={styles.studentList}>
+      {students.length === 0 ? (
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+          <p style={{ margin: 0, fontSize: '0.9rem' }}>Tiada pelajar disenaraikan.</p>
+        </div>
+      ) : (
+        students.map((student, index) => {
+          const isWaitingLive = student.type === 'live' && !student.isCompleted;
+          
+          return (
+            <div 
+              key={student.id} 
+              className={styles.studentItem}
+              style={{ 
+                borderColor: isWaitingLive ? '#3b82f6' : student.isCompleted ? '#10b981' : '#e2e8f0',
+                background: isWaitingLive ? '#eff6ff' : student.isCompleted ? '#f0fdf4' : '#fff'
+              }}
+            >
+              <div className={styles.studentProfile}>
+                <div 
+                  className={styles.studentNumber}
+                  style={{
+                    background: isWaitingLive ? '#2563eb' : student.isCompleted ? '#10b981' : '#e2e8f0',
+                    color: isWaitingLive || student.isCompleted ? '#fff' : '#64748b'
+                  }}
+                >
+                  {student.isCompleted ? <CheckCircle2 size={16} /> : index + 1}
+                </div>
+                
+                <div className={styles.studentInfo}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <h3 className={styles.studentName} style={{ margin: 0 }}>{student.name}</h3>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>({student.matrik})</span>
+                  </div>
+                  
+                  <p className={styles.studentTarget}>
+                    <Target size={12} color="#64748b" /> Sasaran/Semakan: {student.target}
+                  </p>
+                  
+                  <span 
+                    className={styles.badge}
+                    style={{
+                      background: isWaitingLive ? '#dbeafe' : student.isCompleted ? '#dcfce7' : '#f1f5f9',
+                      color: isWaitingLive ? '#1e40af' : student.isCompleted ? '#166534' : '#475569',
+                      fontWeight: 700
+                    }}
+                  >
+                    {student.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.actionGroup}>
+                {isWaitingLive ? (
+                  <button 
+                    className={`${styles.btnAction} ${styles.btnPrimary}`} 
+                    onClick={() => router.push(`/guru/tasmik-live?studentId=${student.id}`)}
+                    style={{ background: '#0062ff', padding: '0.6rem 1.2rem', gap: '6px' }}
+                  >
+                    <Video size={16} /> Sertai Bilik Live
+                  </button>
+                ) : student.isCompleted ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 700, background: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+                      {student.grade ? `Gred: ${student.grade}` : 'Selesai Dinilai'}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <button 
+                      className={`${styles.btnAction} ${styles.btnSecondary}`} 
+                      onClick={() => router.push(`/guru/penilaian-offline?studentId=${student.id}`)} 
+                      title="Buka Borang Penilaian Bersemuka"
+                    >
+                      <FileSignature size={15} /> Borang
+                    </button>
+                    
+                    <button 
+                      className={`${styles.btnAction} ${styles.btnPrimary}`} 
+                      onClick={() => router.push(`/guru/tasmik-live?studentId=${student.id}`)} 
+                      title="Panggil Untuk Sesi Live"
+                    >
+                      <Video size={15} /> Bilik Live
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+
   if (isLoading) {
     return (
       <DashboardGuruLayout userName="Memuatkan..." userRole="Guru">
@@ -238,11 +376,12 @@ export default function GuruDashboardPage() {
                 </p>
               </div>
             </div>
-            <Link href="/guru/tasmik-live" style={{ textDecoration: 'none' }}>
-              <button style={{ background: '#0062ff', color: '#fff', border: 'none', padding: '0.75rem 1.4rem', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(0, 98, 255, 0.25)' }}>
-                <Video size={18} /> Masuk Bilik Tasmik Sekarang
-              </button>
-            </Link>
+            <button 
+              onClick={() => router.push(`/guru/tasmik-live?studentId=${waitingStudent.id}`)}
+              style={{ background: '#0062ff', color: '#fff', border: 'none', padding: '0.75rem 1.4rem', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(0, 98, 255, 0.25)' }}
+            >
+              <Video size={18} /> Masuk Bilik Tasmik Sekarang
+            </button>
           </div>
         )}
         
@@ -288,112 +427,92 @@ export default function GuruDashboardPage() {
         {/* 2. GRID KANDUNGAN UTAMA */}
         <div className={styles.mainGrid}>
           
-          {/* KOLUM KIRI: GILIRAN PELAJAR */}
-          <div className={styles.panelCard}>
-            <div className={styles.panelHeader}>
-              <h2 className={styles.panelTitle}><Users size={18} color="#2563eb" strokeWidth={2} /> Giliran Semakan Hafazan Hari Ini</h2>
-              <button 
-                type="button"
-                onClick={syncDashboardData}
-                style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                <RefreshCw size={13} /> Muat Semula
-              </button>
-            </div>
+          {/* KOLUM KIRI: GILIRAN KELAS / PELAJAR */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
-            <div className={styles.studentList}>
-              {dynamicQueue.length === 0 ? (
-                <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#64748b' }}>
-                  <Users size={48} color="#cbd5e1" style={{ margin: '0 auto 1rem auto' }} />
-                  <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a' }}>Tiada Pelajar Disenaraikan</h3>
-                  <p style={{ margin: 0, fontSize: '0.9rem' }}>Tiada pelajar di bawah seliaan kelas anda buat masa ini. Minta admin mendaftarkan pelajar ke dalam kelas anda.</p>
+            {/* BAHAGIAN BARU: PELAJAR ONLINE HARI INI */}
+            <div className={styles.panelCard} style={{ border: '2px solid #bfdbfe' }}>
+              <div className={styles.panelHeader} style={{ background: '#eff6ff', borderBottom: '1px solid #bfdbfe' }}>
+                <h2 className={styles.panelTitle} style={{ color: '#1e40af' }}>
+                  <Video size={18} color="#2563eb" strokeWidth={2} /> Pelajar Online Hari Ini
+                </h2>
+              </div>
+              <div 
+                style={{ padding: '1.5rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                onClick={() => setShowLiveStudentsModal(true)}
+              >
+                <div>
+                  <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.1rem' }}>Tasmik Secara Online</h3>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>
+                    Terdapat <strong style={{ color: '#0062ff' }}>{liveStudents.length} pelajar</strong> sedang menunggu atau menjadualkan sesi online.
+                  </p>
                 </div>
-              ) : (
-                dynamicQueue.map((student, index) => {
-                  const isWaitingLive = student.type === 'live' && !student.isCompleted && waitingStudent;
-                  
-                  return (
+                <div style={{ background: '#eff6ff', color: '#2563eb', padding: '0.75rem 1.25rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.9rem' }}>
+                  Lihat Senarai
+                </div>
+              </div>
+            </div>
+
+            {/* GILIRAN KELAS */}
+            <div className={styles.panelCard}>
+              <div className={styles.panelHeader}>
+                <h2 className={styles.panelTitle}><BookOpen size={18} color="#2563eb" strokeWidth={2} /> Giliran Semakan Hafazan Hari Ini</h2>
+                <button 
+                  type="button"
+                  onClick={syncDashboardData}
+                  style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <RefreshCw size={13} /> Muat Semula
+                </button>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', padding: '1.5rem' }}>
+                {classesSummary.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#64748b', padding: '2rem 0' }}>
+                    <BookOpen size={40} color="#cbd5e1" style={{ margin: '0 auto 1rem auto' }} />
+                    <p style={{ margin: 0 }}>Tiada kelas di bawah seliaan anda.</p>
+                  </div>
+                ) : (
+                  classesSummary.map(cls => (
                     <div 
-                      key={student.id} 
-                      className={styles.studentItem}
+                      key={cls.id}
+                      onClick={() => setSelectedClassForModal(cls)}
                       style={{ 
-                        borderColor: isWaitingLive ? '#3b82f6' : student.isCompleted ? '#10b981' : '#e2e8f0',
-                        background: isWaitingLive ? '#eff6ff' : student.isCompleted ? '#f0fdf4' : '#fff'
+                        background: '#f8fafc', 
+                        border: '1px solid #e2e8f0', 
+                        borderRadius: '12px', 
+                        padding: '1.25rem', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        transition: 'transform 0.1s, box-shadow 0.1s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
                       }}
                     >
-                      <div className={styles.studentProfile}>
-                        <div 
-                          className={styles.studentNumber}
-                          style={{
-                            background: isWaitingLive ? '#2563eb' : student.isCompleted ? '#10b981' : '#e2e8f0',
-                            color: isWaitingLive || student.isCompleted ? '#fff' : '#64748b'
-                          }}
-                        >
-                          {student.isCompleted ? <CheckCircle2 size={16} /> : index + 1}
-                        </div>
-                        
-                        <div className={styles.studentInfo}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <h3 className={styles.studentName} style={{ margin: 0 }}>{student.name}</h3>
-                            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>({student.matrik})</span>
-                          </div>
-                          
-                          <p className={styles.studentTarget}>
-                            <Target size={12} color="#64748b" /> Sasaran/Semakan: {student.target}
-                          </p>
-                          
-                          <span 
-                            className={styles.badge}
-                            style={{
-                              background: isWaitingLive ? '#dbeafe' : student.isCompleted ? '#dcfce7' : '#f1f5f9',
-                              color: isWaitingLive ? '#1e40af' : student.isCompleted ? '#166534' : '#475569',
-                              fontWeight: 700
-                            }}
-                          >
-                            {student.status}
-                          </span>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700, marginBottom: '0.25rem' }}>{cls.level}</div>
+                        <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.1rem' }}>{cls.name}</h3>
+                        <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', gap: '1rem' }}>
+                          <span>Jumlah Pelajar: <strong>{cls.students.length}</strong></span>
+                          <span>Menunggu Tasmik: <strong style={{ color: cls.waitingCount > 0 ? '#ef4444' : '#10b981' }}>{cls.waitingCount}</strong></span>
                         </div>
                       </div>
-
-                      <div className={styles.actionGroup}>
-                        {isWaitingLive ? (
-                          <button 
-                            className={`${styles.btnAction} ${styles.btnPrimary}`} 
-                            onClick={() => router.push('/guru/tasmik-live')}
-                            style={{ background: '#0062ff', padding: '0.6rem 1.2rem', gap: '6px' }}
-                          >
-                            <Video size={16} /> Sertai Bilik Live
-                          </button>
-                        ) : student.isCompleted ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 700, background: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
-                              {student.grade ? `Gred: ${student.grade}` : 'Selesai Dinilai'}
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                            <button 
-                              className={`${styles.btnAction} ${styles.btnSecondary}`} 
-                              onClick={() => router.push('/guru/penilaian-offline')} 
-                              title="Buka Borang Penilaian Bersemuka"
-                            >
-                              <FileSignature size={15} /> Borang
-                            </button>
-                            
-                            <button 
-                              className={`${styles.btnAction} ${styles.btnPrimary}`} 
-                              onClick={() => router.push('/guru/tasmik-live')} 
-                              title="Panggil Untuk Sesi Live"
-                            >
-                              <Video size={15} /> Bilik Live
-                            </button>
-                          </>
-                        )}
+                      <div style={{ background: '#fff', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '8px', color: '#0f172a', fontSize: '0.85rem', fontWeight: 600 }}>
+                        Buka Kelas
                       </div>
                     </div>
-                  );
-                })
-              )}
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
@@ -473,6 +592,48 @@ export default function GuruDashboardPage() {
         </div>
 
       </div>
+
+      {/* MODAL: SENARAI PELAJAR DALAM KELAS */}
+      {selectedClassForModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)', padding: '1.25rem' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+              <div>
+                <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>{selectedClassForModal.level}</p>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>{selectedClassForModal.name}</h3>
+              </div>
+              <button type="button" onClick={() => setSelectedClassForModal(null)} style={{ background: '#e2e8f0', border: 'none', color: '#475569', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+              {renderStudentList(selectedClassForModal.students)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: SENARAI PELAJAR ONLINE */}
+      {showLiveStudentsModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)', padding: '1.25rem' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '1.5rem', borderBottom: '1px solid #bfdbfe', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#eff6ff' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#1e40af', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Video size={20} /> Pelajar Online Hari Ini
+                </h3>
+              </div>
+              <button type="button" onClick={() => setShowLiveStudentsModal(false)} style={{ background: '#dbeafe', border: 'none', color: '#1e40af', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+              {renderStudentList(liveStudents)}
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>

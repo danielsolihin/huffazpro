@@ -14,6 +14,7 @@ import {
 // --- STRUKTUR DATA ---
 interface ClassItem {
   id: string;
+  level?: string;
   name: string;
   teacher: string;
   session: 'Pagi' | 'Petang';
@@ -61,6 +62,7 @@ export default function AdminKelasPage() {
   const [roomsList, setRoomsList] = useState<MasterItem[]>([]);
   const [timeSlotsList, setTimeSlotsList] = useState<MasterItem[]>([]);
   
+  const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -77,7 +79,7 @@ export default function AdminKelasPage() {
   const [showTimeSlotModal, setShowTimeSlotModal] = useState(false);
 
   // BORANG
-  const [newClass, setNewClass] = useState<Partial<ClassItem>>({ name: '', teacher: '', session: 'Pagi', capacity: 30 });
+  const [newClass, setNewClass] = useState<Partial<ClassItem>>({ level: '', name: '', teacher: '', session: 'Pagi', capacity: 30 });
   const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
   
   const [newSlot, setNewSlot] = useState<Partial<TimetableSlot>>({ day: 'Isnin', timeSlot: '', subject: '', room: '', mode: 'Fizikal', teacher: '' });
@@ -116,12 +118,14 @@ export default function AdminKelasPage() {
         if (classData && classData.length > 0) {
           loadedClasses = classData.map((c: any) => ({
             id: c.id,
+            level: c.level || '-',
             name: c.name,
             teacher: c.teacher_name,
             session: c.session,
             capacity: c.capacity
           }));
           setClasses(loadedClasses);
+          setSelectedLevel(loadedClasses[0].level || '-');
           setSelectedClassId(loadedClasses[0].id);
         }
 
@@ -308,15 +312,18 @@ export default function AdminKelasPage() {
     e.preventDefault();
     if (!newClass.name) return;
     try {
-      const classData = { name: newClass.name, teacher_name: newClass.teacher || 'Tiada Guru', session: newClass.session || 'Pagi', capacity: Number(newClass.capacity) || 30 };
+      const classData = { level: newClass.level || '-', name: newClass.name, teacher_name: newClass.teacher || 'Tiada Guru', session: newClass.session || 'Pagi', capacity: Number(newClass.capacity) || 30 };
       const { data, error } = await supabase.from('classes').insert([classData]).select().single();
       if (error) throw error;
       if (data) {
-        const addedClass: ClassItem = { id: data.id, name: data.name, teacher: data.teacher_name, session: data.session, capacity: data.capacity };
+        const addedClass: ClassItem = { id: data.id, level: data.level, name: data.name, teacher: data.teacher_name, session: data.session, capacity: data.capacity };
         setClasses([...classes, addedClass]);
         setShowAddClassModal(false);
-        setNewClass({ name: '', teacher: teachersList.length > 0 ? teachersList[0].name : '', session: 'Pagi', capacity: 30 });
-        if (!selectedClassId) setSelectedClassId(addedClass.id);
+        setNewClass({ level: '', name: '', teacher: teachersList.length > 0 ? teachersList[0].name : '', session: 'Pagi', capacity: 30 });
+        if (!selectedClassId) {
+          setSelectedLevel(addedClass.level || '-');
+          setSelectedClassId(addedClass.id);
+        }
       }
     } catch (err: any) { alert(`Gagal mencipta kelas: ${err.message}`); }
   };
@@ -330,7 +337,7 @@ export default function AdminKelasPage() {
     e.preventDefault();
     if (!editingClass || !editingClass.name) return;
     try {
-      const updatePayload = { name: editingClass.name, teacher_name: editingClass.teacher || 'Tiada Guru', session: editingClass.session || 'Pagi', capacity: Number(editingClass.capacity) || 30 };
+      const updatePayload = { level: editingClass.level || '-', name: editingClass.name, teacher_name: editingClass.teacher || 'Tiada Guru', session: editingClass.session || 'Pagi', capacity: Number(editingClass.capacity) || 30 };
       const { error } = await supabase.from('classes').update(updatePayload).eq('id', editingClass.id);
       if (error) throw error;
 
@@ -354,7 +361,10 @@ export default function AdminKelasPage() {
         const updated = classes.filter(c => c.id !== id);
         setClasses(updated);
         setStudents(students.map(s => s.classId === id ? { ...s, classId: '' } : s));
-        if (selectedClassId === id && updated.length > 0) setSelectedClassId(updated[0].id);
+        if (selectedClassId === id && updated.length > 0) {
+          setSelectedLevel(updated[0].level || '-');
+          setSelectedClassId(updated[0].id);
+        }
       } catch (err: any) { alert(`Gagal memadam kelas: ${err.message}`); }
     }
   };
@@ -669,7 +679,7 @@ export default function AdminKelasPage() {
                           <UserPlus size={15} /> Urus Pelajar
                         </button>
                         <button 
-                          onClick={() => { setActiveTab('jadual'); setSelectedClassId(cls.id); }}
+                          onClick={() => { setActiveTab('jadual'); setSelectedClassId(cls.id); setSelectedLevel(cls.level || '-'); }}
                           style={{ flex: 1, background: '#fff', border: '1px solid #cbd5e1', color: '#0f172a', padding: '0.55rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                         >
                           <CalendarDays size={15} /> Jadual
@@ -706,16 +716,37 @@ export default function AdminKelasPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             <div style={{ background: '#fff', padding: '1.25rem', borderRadius: '16px', border: '1px solid #eef2f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>Kelas:</label>
-                <select 
-                  value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
-                  style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', outline: 'none', cursor: 'pointer', minWidth: '220px' }}
-                >
-                  {classes.length === 0 && <option value="">Tiada Kelas Tersedia</option>}
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>Peringkat:</label>
+                  <select 
+                    value={selectedLevel}
+                    onChange={(e) => {
+                      setSelectedLevel(e.target.value);
+                      const firstClass = classes.find(c => (c.level || '-') === e.target.value);
+                      if (firstClass) setSelectedClassId(firstClass.id);
+                      else setSelectedClassId('');
+                    }}
+                    style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', outline: 'none', cursor: 'pointer' }}
+                  >
+                    {Array.from(new Set(classes.map(c => c.level || '-'))).map(lvl => (
+                      <option key={lvl} value={lvl}>{lvl}</option>
+                    ))}
+                    {classes.length === 0 && <option value="">Tiada Kelas</option>}
+                  </select>
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>Kelas:</label>
+                  <select 
+                    value={selectedClassId}
+                    onChange={(e) => setSelectedClassId(e.target.value)}
+                    style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', outline: 'none', cursor: 'pointer', minWidth: '180px' }}
+                  >
+                    {classes.filter(c => (c.level || '-') === selectedLevel).length === 0 && <option value="">Tiada Kelas Tersedia</option>}
+                    {classes.filter(c => (c.level || '-') === selectedLevel).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
               </div>
 
               {/* BUTANG MASTER DATA JADUAL */}
@@ -999,7 +1030,7 @@ export default function AdminKelasPage() {
       ============================================================== */}
       {showAddClassModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)', padding: '1.25rem' }}>
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '450px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '550px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Plus size={18} color="#0062ff" /> Cipta Kelas Baharu
@@ -1009,9 +1040,15 @@ export default function AdminKelasPage() {
               </button>
             </div>
             <form onSubmit={handleSaveClass} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>Nama Kelas Pengajian</label>
-                <input type="text" placeholder="Cth: Tingkatan 2 As-Syafie" value={newClass.name} onChange={(e) => setNewClass({...newClass, name: e.target.value})} required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>Tingkatan / Peringkat</label>
+                  <input type="text" placeholder="Cth: Tingkatan 1" value={newClass.level || ''} onChange={(e) => setNewClass({...newClass, level: e.target.value})} required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>Nama Kelas Pengajian</label>
+                  <input type="text" placeholder="Cth: Tingkatan 2 As-Syafie" value={newClass.name} onChange={(e) => setNewClass({...newClass, name: e.target.value})} required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                </div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>Guru Seliaan (Homeroom)</label>
@@ -1049,7 +1086,7 @@ export default function AdminKelasPage() {
       ============================================================== */}
       {showEditClassModal && editingClass && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)', padding: '1.25rem' }}>
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '450px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '550px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Edit size={18} color="#0062ff" /> Kemaskini Kelas & Guru
@@ -1059,15 +1096,21 @@ export default function AdminKelasPage() {
               </button>
             </div>
             <form onSubmit={handleUpdateClass} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>Nama Kelas Pengajian</label>
-                <input 
-                  type="text" 
-                  value={editingClass.name} 
-                  onChange={(e) => setEditingClass({...editingClass, name: e.target.value})} 
-                  required 
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} 
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>Tingkatan / Peringkat</label>
+                  <input type="text" placeholder="Cth: Tingkatan 1" value={editingClass.level || ''} onChange={(e) => setEditingClass({...editingClass, level: e.target.value})} required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>Nama Kelas Pengajian</label>
+                  <input 
+                    type="text" 
+                    value={editingClass.name} 
+                    onChange={(e) => setEditingClass({...editingClass, name: e.target.value})} 
+                    required 
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} 
+                  />
+                </div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>Guru Seliaan (Guru Kelas)</label>

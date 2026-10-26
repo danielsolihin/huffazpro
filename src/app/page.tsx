@@ -152,7 +152,13 @@ export default function LoginPage() {
 
       const userRole = currentUser.role || formData.role || 'Pelajar';
       const rolePath = userRole === 'Waris' ? 'ibubapa' : userRole.toLowerCase();
-      router.push(`/${rolePath}/dashboard`);
+      
+      // AUTO-REDIRECT IBU BAPA TERUS KE PAGE TETAPAN
+      if (userRole === 'Waris') {
+        router.push('/ibubapa/tetapan');
+      } else {
+        router.push(`/${rolePath}/dashboard`);
+      }
 
     } catch (error: any) {
       alert(`Ralat menyimpan profil ke pangkalan data: ${error.message}`);
@@ -546,6 +552,42 @@ export default function LoginPage() {
                       </div>
                     </div>
 
+                    <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '1.5rem 0 0 0' }} />
+
+                    {/* MAKLUMAT BAPA / PENJAGA (Di dalam borang Pelajar) */}
+                    <div>
+                      <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 800 }}>
+                        <Users size={17} color="#7c3aed" /> Maklumat Bapa / Penjaga
+                      </h4>
+                      
+                      <div className="responsive-grid-2">
+                        <div><label style={labelStyle}>Nama Penuh</label><input type="text" placeholder="Nama Penuh" value={formData.parent_name || ''} onChange={e => setFormData({...formData, parent_name: e.target.value})} style={inputStyle} /></div>
+                        <div><label style={labelStyle}>No. MyKad/Pasport</label><input type="text" placeholder="No. MyKad/Pasport" value={formData.parent_ic || ''} onChange={e => setFormData({...formData, parent_ic: e.target.value})} style={inputStyle} /></div>
+                        
+                        <div>
+                          <label style={labelStyle}>Hubungan dengan pelajar</label>
+                          <select value={formData.parent_relation || ''} onChange={e => setFormData({...formData, parent_relation: e.target.value})} style={inputStyle}>
+                            <option value="">Pilih Hubungan</option>
+                            <option value="Bapa">Bapa</option>
+                            <option value="Ibu">Ibu</option>
+                            <option value="Penjaga">Penjaga</option>
+                          </select>
+                        </div>
+                        <div><label style={labelStyle}>Pekerjaan</label><input type="text" placeholder="Pekerjaan" value={formData.parent_occupation || ''} onChange={e => setFormData({...formData, parent_occupation: e.target.value})} style={inputStyle} /></div>
+                        
+                        <div><label style={labelStyle}>Jawatan</label><input type="text" placeholder="Jawatan" value={formData.parent_job_title || ''} onChange={e => setFormData({...formData, parent_job_title: e.target.value})} style={inputStyle} /></div>
+                        <div><label style={labelStyle}>Nama majikan/organisasi</label><input type="text" placeholder="Nama majikan/organisasi" value={formData.parent_employer || ''} onChange={e => setFormData({...formData, parent_employer: e.target.value})} style={inputStyle} /></div>
+                        
+                        <div className="full-col"><label style={labelStyle}>Alamat tempat kerja</label><textarea placeholder="Alamat tempat kerja" rows={2} value={formData.parent_work_address || ''} onChange={e => setFormData({...formData, parent_work_address: e.target.value})} style={{...inputStyle, resize: 'vertical'}} /></div>
+                        
+                        <div><label style={labelStyle}>No. telefon</label><input type="text" placeholder="No. telefon" value={formData.parent_phone || ''} onChange={e => setFormData({...formData, parent_phone: e.target.value})} style={inputStyle} /></div>
+                        <div><label style={labelStyle}>No. telefon pejabat</label><input type="text" placeholder="No. telefon pejabat" value={formData.parent_office_phone || ''} onChange={e => setFormData({...formData, parent_office_phone: e.target.value})} style={inputStyle} /></div>
+                        
+                        <div><label style={labelStyle}>E-mel</label><input type="email" placeholder="E-mel Waris" value={formData.parent_email || ''} onChange={e => setFormData({...formData, parent_email: e.target.value})} style={inputStyle} /></div>
+                        <div><label style={labelStyle}>Pendapatan bulanan</label><select value={formData.parent_income || ''} onChange={e => setFormData({...formData, parent_income: e.target.value})} style={inputStyle}><option value="">Pilih julat pendapatan</option><option value="B40">B40 (Bawah RM4,850)</option><option value="M40">M40 (RM4,851 - RM10,959)</option><option value="T20">T20 (Lebih RM10,960)</option></select></div>
+                      </div>
+                    </div>
+
                   </div>
                 )}
 
@@ -596,22 +638,19 @@ export default function LoginPage() {
                       <div><label style={labelStyle}>Nama Penuh *</label><input type="text" placeholder="Nama Penuh" value={formData.full_name || ''} onChange={e => setFormData({...formData, full_name: e.target.value})} required style={inputStyle} /></div>
                       <div><label style={labelStyle}>No. MyKad/Pasport *</label><input type="text" placeholder="No. MyKad/Pasport" value={formData.matrik_or_id || ''} onChange={e => setFormData({...formData, matrik_or_id: e.target.value})} required style={inputStyle} /></div>
                       
-                      <div><label style={labelStyle}>Hubungan dengan pelajar</label><input type="text" placeholder="Cth: Bapa/Ibu" value={formData.relationship || ''} onChange={e => setFormData({...formData, relationship: e.target.value})} style={inputStyle} /></div>
-                      <div><label style={labelStyle}>Tarikh Lahir</label><input type="date" value={formData.dob || ''} onChange={e => setFormData({...formData, dob: e.target.value})} style={inputStyle} /></div>
-                      
-                      <div><label style={labelStyle}>Kewarganegaraan</label><input type="text" placeholder="Pilih kewarganegaraan" value={formData.nationality || ''} onChange={e => setFormData({...formData, nationality: e.target.value})} style={inputStyle} /></div>
-                      <div><label style={labelStyle}>Pekerjaan</label><input type="text" placeholder="Pekerjaan" value={formData.occupation || ''} onChange={e => setFormData({...formData, occupation: e.target.value})} style={inputStyle} /></div>
-                      
-                      <div><label style={labelStyle}>Jawatan</label><input type="text" placeholder="Jawatan" value={formData.job_title || ''} onChange={e => setFormData({...formData, job_title: e.target.value})} style={inputStyle} /></div>
-                      <div><label style={labelStyle}>Nama majikan/organisasi</label><input type="text" placeholder="Nama majikan/organisasi" value={formData.employer || ''} onChange={e => setFormData({...formData, employer: e.target.value})} style={inputStyle} /></div>
-                      
-                      <div className="full-col"><label style={labelStyle}>Alamat tempat kerja</label><textarea placeholder="Alamat tempat kerja" rows={2} value={formData.work_address || ''} onChange={e => setFormData({...formData, work_address: e.target.value})} style={{...inputStyle, resize: 'vertical'}} /></div>
-                      
+                      <div>
+                        <label style={labelStyle}>Hubungan dengan pelajar</label>
+                        <select value={formData.relationship || ''} onChange={e => setFormData({...formData, relationship: e.target.value})} style={inputStyle} required>
+                          <option value="">Pilih Hubungan</option>
+                          <option value="Bapa">Bapa</option>
+                          <option value="Ibu">Ibu</option>
+                          <option value="Penjaga">Penjaga</option>
+                        </select>
+                      </div>
                       <div><label style={labelStyle}>No. telefon *</label><input type="text" placeholder="No. telefon" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} required style={inputStyle} /></div>
-                      <div><label style={labelStyle}>No. telefon pejabat</label><input type="text" placeholder="No. telefon pejabat" value={formData.office_contact || ''} onChange={e => setFormData({...formData, office_contact: e.target.value})} style={inputStyle} /></div>
                       
+                      <div><label style={labelStyle}>No. telefon pejabat</label><input type="text" placeholder="No. telefon pejabat" value={formData.office_contact || ''} onChange={e => setFormData({...formData, office_contact: e.target.value})} style={inputStyle} /></div>
                       <div><label style={labelStyle}>E-mel</label><input type="email" value={formData.email || ''} readOnly style={{...inputStyle, background: '#f8fafc', color: '#64748b'}} /></div>
-                      <div><label style={labelStyle}>Pendapatan bulanan</label><select value={formData.income || ''} onChange={e => setFormData({...formData, income: e.target.value})} style={inputStyle}><option value="">Pilih julat pendapatan</option><option value="B40">B40 (Bawah RM4,850)</option><option value="M40">M40 (RM4,851 - RM10,959)</option><option value="T20">T20 (Lebih RM10,960)</option></select></div>
                     </div>
                   </div>
                 )}

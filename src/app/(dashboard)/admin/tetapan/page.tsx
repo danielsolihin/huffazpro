@@ -28,6 +28,9 @@ export default function AdminTetapanPage() {
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  
   const [activeTab, setActiveTab] = useState<'profil' | 'akademik' | 'sistem' | 'admin'>('profil');
   
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +43,7 @@ export default function AdminTetapanPage() {
   const [showSemesterModal, setShowSemesterModal] = useState(false);
   const [newItemText, setNewItemText] = useState('');
 
+  // Fallback sekiranya DB kosong
   const defaultSettings: SystemSettings = {
     instName: 'Maahad Tahfiz HuffazPro', instRegNo: 'MTH-2020-8819', instMotto: 'Pusat Kecemerlangan Hafazan Interaktif',
     instAddress: 'No 12, Jalan Tasmik Utama, Pusat Bandar Shah Alam, 40000 Selangor', instPhone: '+60 3-5512 3456', instEmail: 'admin@huffazpro.edu.my', instLogoUrl: '',
@@ -57,30 +61,12 @@ export default function AdminTetapanPage() {
     const fetchSettingsAndProfile = async () => {
       setIsLoading(true);
       try {
-        const { data: settingsData } = await supabase.from('settings').select('*').limit(1).single();
-        if (settingsData) {
-          setSettings({
-            id: settingsData.id,
-            instName: settingsData.inst_name || defaultSettings.instName,
-            instRegNo: settingsData.inst_reg_no || defaultSettings.instRegNo,
-            instMotto: settingsData.inst_motto || defaultSettings.instMotto,
-            instAddress: settingsData.inst_address || defaultSettings.instAddress,
-            instPhone: settingsData.inst_phone || defaultSettings.instPhone,
-            instEmail: settingsData.inst_email || defaultSettings.instEmail,
-            instLogoUrl: settingsData.inst_logo_url || '',
-            academicSession: settingsData.academic_session || defaultSettings.academicSession,
-            semester: settingsData.semester || defaultSettings.semester,
-            passingMark: settingsData.passing_mark || defaultSettings.passingMark,
-            maintenanceMode: settingsData.maintenance_mode || false,
-            autoNotification: settingsData.auto_notification !== undefined ? settingsData.auto_notification : true,
-            availableSessions: settingsData.available_sessions || defaultSettings.availableSessions,
-            availableSemesters: settingsData.available_semesters || defaultSettings.availableSemesters
-          });
-        }
-
+        // 1. Dapatkan profil Admin
         const { data: authData } = await supabase.auth.getUser();
+        let adminId = '';
         if (authData?.user) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();
+          adminId = authData.user.id;
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', adminId).single();
           if (profile) {
             setAdminProfile({
               id: profile.id,
@@ -89,6 +75,51 @@ export default function AdminTetapanPage() {
               avatarUrl: profile.avatar_url || '',
               password: ''
             });
+          }
+        }
+
+        // 2. Dapatkan Tetapan Sistem
+        const { data: settingsData, error: settingsError } = await supabase.from('settings').select('*').limit(1).maybeSingle();
+        
+        if (settingsData) {
+          setSettings({
+            id: settingsData.id,
+            instName: settingsData.inst_name || '',
+            instRegNo: settingsData.inst_reg_no || '',
+            instMotto: settingsData.inst_motto || '',
+            instAddress: settingsData.inst_address || '',
+            instPhone: settingsData.inst_phone || '',
+            instEmail: settingsData.inst_email || '',
+            instLogoUrl: settingsData.inst_logo_url || '',
+            academicSession: settingsData.academic_session || '',
+            semester: settingsData.semester || '',
+            passingMark: settingsData.passing_mark || 80,
+            maintenanceMode: settingsData.maintenance_mode || false,
+            autoNotification: settingsData.auto_notification ?? true,
+            availableSessions: settingsData.available_sessions || [],
+            availableSemesters: settingsData.available_semesters || []
+          });
+        } else if (!settingsData && !settingsError) {
+          // Jika jadual kosong, wujudkan row tetapan pertama menggunakan default
+          const dbSettingsData = {
+            inst_name: defaultSettings.instName,
+            inst_reg_no: defaultSettings.instRegNo,
+            inst_motto: defaultSettings.instMotto,
+            inst_address: defaultSettings.instAddress,
+            inst_phone: defaultSettings.instPhone,
+            inst_email: defaultSettings.instEmail,
+            inst_logo_url: defaultSettings.instLogoUrl,
+            academic_session: defaultSettings.academicSession,
+            semester: defaultSettings.semester,
+            passing_mark: defaultSettings.passingMark,
+            maintenance_mode: defaultSettings.maintenanceMode,
+            auto_notification: defaultSettings.autoNotification,
+            available_sessions: defaultSettings.availableSessions,
+            available_semesters: defaultSettings.availableSemesters
+          };
+          const { data: newSetting } = await supabase.from('settings').insert([dbSettingsData]).select().single();
+          if (newSetting) {
+            setSettings({ ...defaultSettings, id: newSetting.id });
           }
         }
       } catch (error) {
@@ -105,7 +136,7 @@ export default function AdminTetapanPage() {
     const fileExt = file.name.split('.').pop();
     const fileName = `${pathPrefix}-${Date.now()}.${fileExt}`;
     
-    const { data, error } = await supabase.storage.from(bucket).upload(fileName, file, { upsert: true });
+    const { error } = await supabase.storage.from(bucket).upload(fileName, file, { upsert: true });
     if (error) throw error;
     
     const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
@@ -115,26 +146,42 @@ export default function AdminTetapanPage() {
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      setToastMessage({ type: 'error', text: 'Saiz logo melebihi 2MB.' });
+      return;
+    }
+
+    setIsUploadingLogo(true);
     try {
-      setToastMessage({ type: 'success', text: 'Memuat naik logo...' });
       const publicUrl = await uploadImageToStorage(file, 'logos', 'inst-logo');
       setSettings({ ...settings, instLogoUrl: publicUrl });
-      setToastMessage({ type: 'success', text: 'Logo sedia untuk disimpan.' });
+      setToastMessage({ type: 'success', text: 'Logo berjaya dimuat naik. Sila klik Simpan.' });
     } catch (error: any) {
-      setToastMessage({ type: 'error', text: `Gagal muat naik: Pastikan bucket 'logos' wujud.` });
+      setToastMessage({ type: 'error', text: `Gagal muat naik: ${error.message}` });
+    } finally {
+      setIsUploadingLogo(false);
     }
   };
 
   const handleAdminAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setToastMessage({ type: 'error', text: 'Saiz avatar melebihi 2MB.' });
+      return;
+    }
+
+    setIsUploadingAvatar(true);
     try {
-      setToastMessage({ type: 'success', text: 'Memuat naik gambar profil...' });
       const publicUrl = await uploadImageToStorage(file, 'avatars', 'admin-avatar');
       setAdminProfile({ ...adminProfile, avatarUrl: publicUrl });
-      setToastMessage({ type: 'success', text: 'Gambar profil sedia untuk disimpan.' });
+      setToastMessage({ type: 'success', text: 'Avatar berjaya dimuat naik. Sila klik Simpan.' });
     } catch (error: any) {
-      setToastMessage({ type: 'error', text: `Gagal muat naik: Pastikan bucket 'avatars' wujud.` });
+      setToastMessage({ type: 'error', text: `Gagal muat naik: ${error.message}` });
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -160,13 +207,15 @@ export default function AdminTetapanPage() {
       };
 
       if (settings.id) {
-        await supabase.from('settings').update(dbSettingsData).eq('id', settings.id);
+        const { error } = await supabase.from('settings').update(dbSettingsData).eq('id', settings.id);
+        if (error) throw error;
       } else {
-        const { data } = await supabase.from('settings').insert([dbSettingsData]).select().single();
+        const { data, error } = await supabase.from('settings').insert([dbSettingsData]).select().single();
+        if (error) throw error;
         if (data) setSettings({...settings, id: data.id});
       }
 
-      setToastMessage({ type: 'success', text: 'Tetapan sistem berjaya disimpan di Supabase.' });
+      setToastMessage({ type: 'success', text: 'Tetapan sistem berjaya disimpan.' });
       setTimeout(() => setToastMessage(null), 3000);
     } catch (error: any) {
       setToastMessage({ type: 'error', text: `Gagal menyimpan: ${error.message}` });
@@ -180,16 +229,21 @@ export default function AdminTetapanPage() {
     setIsSubmitting(true);
     try {
       if (adminProfile.id) {
-        await supabase.from('profiles').update({
+        const { error } = await supabase.from('profiles').update({
           full_name: adminProfile.name,
           avatar_url: adminProfile.avatarUrl
         }).eq('id', adminProfile.id);
+        if (error) throw error;
       }
+
       if (adminProfile.password) {
+        if (adminProfile.password.length < 6) throw new Error("Kata laluan mestilah sekurang-kurangnya 6 aksara.");
         const { error } = await supabase.auth.updateUser({ password: adminProfile.password });
         if (error) throw error;
         setAdminProfile({ ...adminProfile, password: '' });
       }
+      
+      window.dispatchEvent(new Event('avatarUpdated'));
       setToastMessage({ type: 'success', text: 'Profil pentadbir berjaya dikemas kini.' });
       setTimeout(() => setToastMessage(null), 3000);
     } catch (error: any) {
@@ -200,19 +254,20 @@ export default function AdminTetapanPage() {
   };
 
   const handleResetSystem = async () => {
-    if (confirm("AMARAN KERAS: Tindakan ini akan memadam KESEMUA data (profiles, evaluations, attendance). Adakah anda pasti?")) {
-      const userInput = prompt("Taip 'PADAM SEMUA' untuk meneruskan:");
+    if (confirm("AMARAN KERAS: Tindakan ini akan memadam KESEMUA rekod hafazan (evaluations) dan kehadiran (attendance) pelajar. Data profil dikekalkan. Adakah anda pasti?")) {
+      const userInput = prompt("Taip 'PADAM SEMUA' untuk meneruskan tindakan berbahaya ini:");
       if (userInput === 'PADAM SEMUA') {
         try {
           await supabase.from('evaluations').delete().neq('id', '0');
           await supabase.from('attendance').delete().neq('id', '0');
-          alert("Pangkalan data (Evaluation & Attendance) telah dikosongkan. Sistem akan dimuat semula.");
-          window.location.reload();
+          alert("Pangkalan data (Penilaian & Kehadiran) telah dikosongkan. Anda akan dilog keluar untuk muat semula sesi.");
+          await supabase.auth.signOut();
+          window.location.href = '/';
         } catch (error: any) {
           alert(`Gagal memadam: ${error.message}`);
         }
       } else { 
-        alert("Proses dibatalkan."); 
+        alert("Proses pemadaman dibatalkan."); 
       }
     }
   };
@@ -227,7 +282,7 @@ export default function AdminTetapanPage() {
   const removeSessionItem = (item: string) => {
     const updated = settings.availableSessions.filter(s => s !== item);
     setSettings({...settings, availableSessions: updated});
-    if (settings.academicSession === item) setSettings({...settings, academicSession: updated[0] || '', availableSessions: updated});
+    if (settings.academicSession === item) setSettings({...settings, academicSession: updated[0] || ''});
   };
 
   const addSemesterItem = () => {
@@ -239,7 +294,7 @@ export default function AdminTetapanPage() {
   const removeSemesterItem = (item: string) => {
     const updated = settings.availableSemesters.filter(s => s !== item);
     setSettings({...settings, availableSemesters: updated});
-    if (settings.semester === item) setSettings({...settings, semester: updated[0] || '', availableSemesters: updated});
+    if (settings.semester === item) setSettings({...settings, semester: updated[0] || ''});
   };
 
   if (!mounted) return <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}></div>;
@@ -279,11 +334,11 @@ export default function AdminTetapanPage() {
         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
           
           <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #eef2f6', padding: '1rem', width: '250px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <button onClick={() => setActiveTab('profil')} style={tabButtonStyle(activeTab === 'profil')}><Building2 size={18}/> Profil Institusi</button>
-            <button onClick={() => setActiveTab('akademik')} style={tabButtonStyle(activeTab === 'akademik')}><GraduationCap size={18}/> Tetapan Akademik</button>
-            <button onClick={() => setActiveTab('sistem')} style={tabButtonStyle(activeTab === 'sistem')}><Database size={18}/> Penyelenggaraan DB</button>
+            <button onClick={() => {setActiveTab('profil'); setToastMessage(null);}} style={tabButtonStyle(activeTab === 'profil')}><Building2 size={18}/> Profil Institusi</button>
+            <button onClick={() => {setActiveTab('akademik'); setToastMessage(null);}} style={tabButtonStyle(activeTab === 'akademik')}><GraduationCap size={18}/> Tetapan Akademik</button>
+            <button onClick={() => {setActiveTab('sistem'); setToastMessage(null);}} style={tabButtonStyle(activeTab === 'sistem')}><Database size={18}/> Penyelenggaraan DB</button>
             <hr style={{ borderTop: '1px solid #f1f5f9', margin: '0.5rem 0' }} />
-            <button onClick={() => setActiveTab('admin')} style={tabButtonStyle(activeTab === 'admin', true)}><UserCircle size={18}/> Akaun Pentadbir</button>
+            <button onClick={() => {setActiveTab('admin'); setToastMessage(null);}} style={tabButtonStyle(activeTab === 'admin', true)}><UserCircle size={18}/> Akaun Pentadbir</button>
           </div>
 
           <div style={{ flex: 1, minWidth: '300px', background: '#fff', borderRadius: '16px', border: '1px solid #eef2f6', overflow: 'hidden' }}>
@@ -296,11 +351,17 @@ export default function AdminTetapanPage() {
                     <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.2rem', color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>Maklumat Rasmi Maahad</h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
                       <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: '#f8fafc', border: '2px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                        {settings.instLogoUrl ? <img src={settings.instLogoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Building2 size={32} color="#94a3b8" />}
+                        {isUploadingLogo ? (
+                          <Loader2 className="animate-spin" size={24} color="#0062ff" />
+                        ) : settings.instLogoUrl ? (
+                          <img src={settings.instLogoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        ) : (
+                          <Building2 size={32} color="#94a3b8" />
+                        )}
                       </div>
                       <div>
-                        <input type="file" ref={logoInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
-                        <button type="button" onClick={() => logoInputRef.current?.click()} style={{ background: '#fff', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <input type="file" ref={logoInputRef} accept="image/png, image/jpeg, image/webp" style={{ display: 'none' }} onChange={handleLogoUpload} />
+                        <button type="button" disabled={isUploadingLogo} onClick={() => logoInputRef.current?.click()} style={{ background: '#fff', border: '1px solid #cbd5e1', padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', cursor: isUploadingLogo ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <UploadCloud size={16}/> Muat Naik Logo
                         </button>
                       </div>
@@ -316,7 +377,7 @@ export default function AdminTetapanPage() {
                   </div>
                 )}
 
-                {/* TAB 2: TETAPAN AKADEMIK (DIKEMAS KINI) */}
+                {/* TAB 2: TETAPAN AKADEMIK */}
                 {activeTab === 'akademik' && (
                   <div style={{ padding: '2rem' }}>
                     <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.2rem', color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>Kalendar & Penilaian Akademik</h2>
@@ -326,6 +387,7 @@ export default function AdminTetapanPage() {
                         <div style={{ flex: 1 }}>
                           <label style={labelStyle}>Sesi Pengajian Semasa</label>
                           <select value={settings.academicSession} onChange={(e) => setSettings({...settings, academicSession: e.target.value})} style={{...inputStyle, cursor: 'pointer'}}>
+                            {settings.availableSessions.length === 0 && <option value="">Sila tambah sesi</option>}
                             {settings.availableSessions.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </div>
@@ -336,6 +398,7 @@ export default function AdminTetapanPage() {
                         <div style={{ flex: 1 }}>
                           <label style={labelStyle}>Semester Aktif</label>
                           <select value={settings.semester} onChange={(e) => setSettings({...settings, semester: e.target.value})} style={{...inputStyle, cursor: 'pointer'}}>
+                            {settings.availableSemesters.length === 0 && <option value="">Sila tambah semester</option>}
                             {settings.availableSemesters.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </div>
@@ -393,16 +456,22 @@ export default function AdminTetapanPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
                     <div style={{ position: 'relative', width: '90px', height: '90px', margin: '0' }}>
                       <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#f5f3ff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 800, overflow: 'hidden', border: '2px solid #e2e8f0' }}>
-                        {adminProfile.avatarUrl ? <img src={adminProfile.avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : adminProfile.name.charAt(0)}
+                        {isUploadingAvatar ? (
+                          <Loader2 className="animate-spin" size={24} color="#7c3aed" />
+                        ) : adminProfile.avatarUrl ? (
+                          <img src={adminProfile.avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          adminProfile.name.charAt(0)
+                        )}
                       </div>
-                      <div onClick={() => adminAvatarRef.current?.click()} style={{ position: 'absolute', bottom: '-2px', right: '-2px', background: '#0062ff', color: '#fff', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
+                      <div onClick={() => !isUploadingAvatar && adminAvatarRef.current?.click()} style={{ position: 'absolute', bottom: '-2px', right: '-2px', background: '#0062ff', color: '#fff', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isUploadingAvatar ? 'not-allowed' : 'pointer', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }}>
                         <Camera size={14} />
                       </div>
-                      <input type="file" ref={adminAvatarRef} accept="image/*" style={{ display: 'none' }} onChange={handleAdminAvatarUpload} />
+                      <input type="file" ref={adminAvatarRef} accept="image/png, image/jpeg, image/webp" style={{ display: 'none' }} onChange={handleAdminAvatarUpload} />
                     </div>
                     <div>
                       <p style={{ margin: '0 0 0.2rem 0', fontWeight: 700, color: '#0f172a' }}>Gambar Profil (Avatar)</p>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Klik ikon kamera untuk menukar gambar rasmi anda.</p>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Klik ikon kamera untuk menukar gambar rasmi anda (Maks 2MB).</p>
                     </div>
                   </div>
 

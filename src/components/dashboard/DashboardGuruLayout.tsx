@@ -9,7 +9,7 @@ import {
   CalendarDays, FileText, Settings, LogOut, 
   Menu, Bell, ShieldCheck, MessageCircle, 
   X, Send, Clock, AlertTriangle, Printer, Loader2, MapPin, Users,
-  CalendarCheck, DollarSign, CalendarPlus, MoreHorizontal
+  CalendarCheck, DollarSign, CalendarPlus, MoreHorizontal, CheckCircle2
 } from 'lucide-react';
 
 interface DashboardGuruLayoutProps {
@@ -65,10 +65,15 @@ export default function DashboardGuruLayout({ children, userName = 'Ustaz Ahmad'
   const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const [loginTime, setLoginTime] = useState('');
   const [teacherId, setTeacherId] = useState('');
   const [guruProfile, setGuruProfile] = useState({ name: userName, role: userRole, avatar: '' });
+
+  // STATUS KEHADIRAN GURU
+  const [isPunchedIn, setIsPunchedIn] = useState(false);
+  const [isPunchingIn, setIsPunchingIn] = useState(false);
 
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [parentMessages, setParentMessages] = useState<any[]>([]);
@@ -97,15 +102,20 @@ export default function DashboardGuruLayout({ children, userName = 'Ustaz Ahmad'
       const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
       const [attRes, profileRes, notifsRes] = await Promise.all([
-        supabase.from('attendance').select('time_in, created_at').eq('user_id', tId).or(`date.eq.${todayIso},date.eq.${todayLocale}`).maybeSingle(),
+        supabase.from('attendance').select('id, time_in, created_at, status').eq('user_id', tId).eq('date', todayIso).maybeSingle(),
         supabase.from('profiles').select('*').eq('id', tId).single(),
         supabase.from('notifications').select('*, profiles!notifications_sender_id_fkey(full_name)').eq('user_id', tId).eq('is_read', false).order('created_at', { ascending: false })
       ]);
 
-      if (!loginTime) {
-        if (attRes.data?.time_in) setLoginTime(formatTimeAMPM(attRes.data.time_in));
-        else if (attRes.data?.created_at) setLoginTime(formatTimeAMPM(attRes.data.created_at));
-        else setLoginTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+      if (attRes.data) {
+        setIsPunchedIn(true);
+        if (!loginTime) {
+          if (attRes.data.time_in && attRes.data.time_in !== '-') setLoginTime(formatTimeAMPM(attRes.data.time_in));
+          else if (attRes.data.created_at) setLoginTime(formatTimeAMPM(attRes.data.created_at));
+        }
+      } else if (!loginTime) {
+        // Jika belum masuk, tunjukkan masa mula dashboard dibuka 
+        setLoginTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
       }
 
       if (profileRes.data) {
@@ -148,6 +158,37 @@ export default function DashboardGuruLayout({ children, userName = 'Ustaz Ahmad'
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // FUNGSI PUNCH-IN KEHADIRAN GURU
+  const handlePunchIn = async () => {
+    if (isPunchedIn || !teacherId) return;
+    
+    setIsPunchingIn(true);
+    try {
+      const now = new Date();
+      const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const timeNow = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      const attData = {
+        user_id: teacherId,
+        date: todayIso,
+        time_in: timeNow,
+        status: 'Hadir Bertugas',
+        remarks: 'Direkod sendiri melalui Portal Pentasmik'
+      };
+
+      const { error } = await supabase.from('attendance').insert([attData]);
+      if (error) throw error;
+      
+      setIsPunchedIn(true);
+      setLoginTime(timeNow);
+      alert('Kehadiran anda untuk hari ini telah berjaya direkodkan.');
+    } catch (err: any) {
+      alert(`Gagal merekod kehadiran: ${err.message}`);
+    } finally {
+      setIsPunchingIn(false);
+    }
+  };
 
   // PENARIKAN JADUAL WAKTU SERENTAK DENGAN PROMISE.ALL
   const fetchTimetableData = async () => {
@@ -258,10 +299,38 @@ export default function DashboardGuruLayout({ children, userName = 'Ustaz Ahmad'
     }
   };
 
+  // =========================================================================
+  // FUNGSI LOG KELUAR & KEMASKINI MASA KELUAR (TIME OUT)
+  // =========================================================================
   const handleConfirmLogout = async () => {
-    await supabase.auth.signOut();
-    setShowLogoutModal(false);
-    router.push('/');
+    setIsLoggingOut(true);
+    try {
+      if (teacherId && isPunchedIn) {
+        const now = new Date();
+        const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const timeOutStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+        const { data: attData } = await supabase
+          .from('attendance')
+          .select('id, time_in')
+          .eq('user_id', teacherId)
+          .eq('date', todayIso)
+          .maybeSingle();
+
+        if (attData && attData.id) {
+          await supabase
+            .from('attendance')
+            .update({ time_out: timeOutStr })
+            .eq('id', attData.id);
+        }
+      }
+    } catch (err) {
+      console.error('Gagal merekod masa keluar:', err);
+    } finally {
+      await supabase.auth.signOut();
+      setShowLogoutModal(false);
+      router.push('/');
+    }
   };
 
   const isActive = (path: string) => pathname === path;
@@ -437,9 +506,35 @@ export default function DashboardGuruLayout({ children, userName = 'Ustaz Ahmad'
               <Menu size={20} />
             </button>
 
-            <span className="badge-kehadiran-desktop" style={{ background: '#ecfdf5', color: '#059669', fontSize: '0.75rem', fontWeight: 700, padding: '0.3rem 0.75rem', borderRadius: '20px', alignItems: 'center', gap: '4px' }}>
-              <ShieldCheck size={14} /> Log Kehadiran Aktif
-            </span>
+            <button 
+              onClick={handlePunchIn}
+              disabled={isPunchedIn || isPunchingIn}
+              className="badge-kehadiran-desktop" 
+              style={{ 
+                background: isPunchedIn ? '#ecfdf5' : '#fef2f2', 
+                color: isPunchedIn ? '#059669' : '#dc2626', 
+                border: `1px solid ${isPunchedIn ? '#a7f3d0' : '#fecaca'}`,
+                fontSize: '0.75rem', 
+                fontWeight: 700, 
+                padding: '0.3rem 0.75rem', 
+                borderRadius: '20px', 
+                display: 'inline-flex',
+                alignItems: 'center', 
+                gap: '4px',
+                cursor: isPunchedIn ? 'default' : 'pointer',
+                transition: 'all 0.2s'
+              }}
+              title={isPunchedIn ? "Kehadiran telah direkod" : "Klik untuk sahkan kehadiran hari ini"}
+            >
+              {isPunchingIn ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : isPunchedIn ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <ShieldCheck size={14} />
+              )}
+              {isPunchedIn ? 'Hadir Disahkan' : 'Sahkan Kehadiran'}
+            </button>
 
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
               Assalamualaikum, <span style={{ color: '#2563eb' }}>{shortName}!</span>
@@ -451,7 +546,7 @@ export default function DashboardGuruLayout({ children, userName = 'Ustaz Ahmad'
               <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', background: '#f8fafc', padding: '0.35rem 0.65rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                 <CalendarDays size={12} /> {new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })}
               </span>
-              <span style={{ fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', background: '#ecfdf5', padding: '0.35rem 0.65rem', borderRadius: '6px', border: '1px solid #a7f3d0', fontWeight: 600 }}>
+              <span style={{ fontSize: '0.75rem', color: isPunchedIn ? '#059669' : '#475569', display: 'flex', alignItems: 'center', gap: '4px', background: isPunchedIn ? '#ecfdf5' : '#f1f5f9', padding: '0.35rem 0.65rem', borderRadius: '6px', border: `1px solid ${isPunchedIn ? '#a7f3d0' : '#cbd5e1'}`, fontWeight: 600 }}>
                 <Clock size={12} /> {formatTimeAMPM(loginTime)}
               </span>
             </div>
@@ -740,9 +835,12 @@ export default function DashboardGuruLayout({ children, userName = 'Ustaz Ahmad'
               <AlertTriangle size={32} color="#dc2626" style={{ margin: '0 auto 0.75rem auto' }} />
               <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.1rem' }}>Log Keluar Portal Guru</h3>
               <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.85rem', color: '#64748b' }}>Adakah anda pasti mahu mendaftar keluar dari portal pentasmik?</p>
+              
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="button" onClick={() => setShowLogoutModal(false)} style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>Batal</button>
-                <button type="button" onClick={handleConfirmLogout} style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}>Log Keluar</button>
+                <button type="button" disabled={isLoggingOut} onClick={() => setShowLogoutModal(false)} style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>Batal</button>
+                <button type="button" disabled={isLoggingOut} onClick={handleConfirmLogout} style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, cursor: isLoggingOut ? 'not-allowed' : 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  {isLoggingOut ? <Loader2 size={16} className="animate-spin" /> : 'Log Keluar'}
+                </button>
               </div>
             </div>
           </div>
@@ -841,7 +939,7 @@ export default function DashboardGuruLayout({ children, userName = 'Ustaz Ahmad'
         }
 
         /* ==============================================================
-           TABLET RESPONSIVE (Skrin < 1024px)
+            TABLET RESPONSIVE (Skrin < 1024px)
         ============================================================== */
         @media (max-width: 1023px) {
           .sidebar {
@@ -880,7 +978,7 @@ export default function DashboardGuruLayout({ children, userName = 'Ustaz Ahmad'
         }
 
         /* ==============================================================
-           SMARTPHONE RESPONSIVE (Skrin < 768px)
+            SMARTPHONE RESPONSIVE (Skrin < 768px)
         ============================================================== */
         @media (max-width: 767px) {
           .badge-kehadiran-desktop {

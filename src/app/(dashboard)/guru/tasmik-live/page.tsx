@@ -10,7 +10,7 @@ import {
   CheckCircle2, Trash2, X, Users, BellRing, Video, Lock, PhoneCall,
   Smartphone, Award
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface SurahMeta {
   number: number;
@@ -47,6 +47,7 @@ const isValidUUID = (val: any): boolean => {
 
 export default function StudioTasmikLivePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // STATE GURU & PELAJAR (SUPABASE)
   const [teacherId, setTeacherId] = useState('');
@@ -182,9 +183,17 @@ export default function StudioTasmikLivePage() {
 
         setSenaraiPelajar(studentList);
 
-        if (studentList.length > 0) {
+        // Tangkap parameter 'studentId' jika ia dihantar dari halaman Dashboard
+        const targetStudentId = searchParams.get('studentId');
+
+        if (targetStudentId && isValidUUID(targetStudentId) && studentList.some(p => p.id === targetStudentId)) {
+          setSelectedStudentId(targetStudentId);
+          // Opsyenal: Automatik panggil jika mahu - tetapi ini memerlukan fungsi luar di render
+          // buat masa ini, kita biarkan ID terpilih dan menunggu butang 'Mulakan Panggilan'
+        } else if (studentList.length > 0) {
           setSelectedStudentId(studentList[0].id);
         }
+
       } catch (err) {
         console.error('Ralat menarik data tasmik live:', err);
       } finally {
@@ -193,7 +202,18 @@ export default function StudioTasmikLivePage() {
     };
 
     fetchInitialData();
-  }, []);
+  }, [searchParams]);
+
+  // AUTO-PANGGILAN JIKA STUDENT_ID DIRUJUK DARI PARAMETER URL
+  useEffect(() => {
+    const urlStudentId = searchParams.get('studentId');
+    if (urlStudentId && isValidUUID(urlStudentId) && isProfileLoaded && senaraiPelajar.length > 0) {
+      if (!isCallActive && selectedStudentId === urlStudentId) {
+        // Auto mulakan panggilan selepas profil dimuatkan sepenuhnya
+        handleInviteStudent(urlStudentId);
+      }
+    }
+  }, [isProfileLoaded, searchParams, senaraiPelajar]);
 
   // 1b. DENGAR ISYARAT BILIK MENUNGGU (DILENGKAPI PENAPIS PENOLAKAN / DISMISS FILTER)
   useEffect(() => {

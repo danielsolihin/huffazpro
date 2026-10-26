@@ -7,7 +7,8 @@ import {
   Users, TrendingUp, CalendarCheck, AlertTriangle, 
   Search, Filter, Download, FileText, 
   Printer, History, X, BookOpenCheck, UserRoundSearch, PrinterCheck,
-  Phone, User, Calendar, CalendarClock, Loader2
+  Phone, User, Calendar, CalendarClock, Loader2,
+  MapPin, Mail, Briefcase, ShieldAlert, Activity, CreditCard, ShieldCheck, UserCheck
 } from 'lucide-react';
 import styles from './Laporan.module.css';
 
@@ -28,6 +29,14 @@ interface StudentReport {
   yearlyHistory: YearlyAssessmentHistory[];
   attendanceHistory: DailyAttendance[];
   attendanceSummary: { present: number; absent: number; percentage: number; }; 
+  gender?: string; dob?: string; pob?: string; state_of_birth?: string; country_of_birth?: string; 
+  nationality?: string; race?: string; citizenship_status?: string; address?: string; postcode?: string; 
+  city?: string; state?: string; email?: string;
+  health_status?: string; allergies?: string; dietary_needs?: string; learning_aids?: string; emergency_meds?: string;
+  parent_name?: string; parent_ic?: string; parent_relation?: string; parent_dob?: string; 
+  parent_nationality?: string; parent_occupation?: string; parent_job_title?: string; 
+  parent_employer?: string; parent_work_address?: string; parent_phone?: string; 
+  parent_office_phone?: string; parent_email?: string; parent_income?: string;
 }
 
 const SENARAI_BULAN = [
@@ -81,6 +90,7 @@ export default function KehadiranLaporanPage() {
 
   // Modals State
   const [selectedProfileStudent, setSelectedProfileStudent] = useState<StudentReport | null>(null);
+  const [profileTab, setProfileTab] = useState<'peribadi' | 'hafazan' | 'kesihatan' | 'waris'>('peribadi');
   const [selectedAttendanceStudent, setSelectedAttendanceStudent] = useState<StudentReport | null>(null);
   const [selectedHistoryStudent, setSelectedHistoryStudent] = useState<StudentReport | null>(null);
   const [selectedReportCardStudent, setSelectedReportCardStudent] = useState<StudentReport | null>(null);
@@ -328,7 +338,38 @@ export default function KehadiranLaporanPage() {
               { month: 'Sesi Semasa', progress: currentProg, grade: lastGradeStr, attendance: `${attPct}%` }
             ],
             attendanceHistory: formattedAtt,
-            attendanceSummary: { present: presentCount, absent: absentCount, percentage: attPct }
+            attendanceSummary: { present: presentCount, absent: absentCount, percentage: attPct },
+            gender: pelajar.gender || '-',
+            dob: pelajar.dob || '-',
+            pob: pelajar.pob || '-',
+            state_of_birth: pelajar.state_of_birth || '-',
+            country_of_birth: pelajar.country_of_birth || '-',
+            nationality: pelajar.nationality || '-',
+            race: pelajar.race || '-',
+            citizenship_status: pelajar.citizenship_status || '-',
+            address: pelajar.address || '-',
+            postcode: pelajar.postcode || '-',
+            city: pelajar.city || '-',
+            state: pelajar.state || '-',
+            email: pelajar.email || '-',
+            health_status: pelajar.health_status || '-',
+            allergies: pelajar.allergies || '-',
+            dietary_needs: pelajar.dietary_needs || '-',
+            learning_aids: pelajar.learning_aids || '-',
+            emergency_meds: pelajar.emergency_meds || '-',
+            parent_name: pelajar.parent_name || pelajar.guardian || '-',
+            parent_ic: pelajar.parent_ic || '-',
+            parent_relation: pelajar.parent_relation || '-',
+            parent_dob: pelajar.parent_dob || '-',
+            parent_nationality: pelajar.parent_nationality || '-',
+            parent_occupation: pelajar.parent_occupation || '-',
+            parent_job_title: pelajar.parent_job_title || '-',
+            parent_employer: pelajar.parent_employer || '-',
+            parent_work_address: pelajar.parent_work_address || '-',
+            parent_phone: pelajar.parent_phone || pelajar.guardian_phone || '-',
+            parent_office_phone: pelajar.parent_office_phone || '-',
+            parent_email: pelajar.parent_email || '-',
+            parent_income: pelajar.parent_income || '-'
           });
         });
 
@@ -475,7 +516,7 @@ export default function KehadiranLaporanPage() {
                           <td>{student.mainIssue === 'Tiada (Lancar)' || student.mainIssue === 'Tiada Rekod' ? <span className={styles.safeTag}>{student.mainIssue}</span> : <span className={styles.issueTag}>{student.mainIssue}</span>}</td>
                           <td className={styles.noPrint}>
                             <div className={styles.actionGroup}>
-                              <button className={styles.actionBtn} onClick={() => setSelectedProfileStudent(student)} title="Lihat Profil"><UserRoundSearch size={16} /></button>
+                              <button className={styles.actionBtn} onClick={() => { setSelectedProfileStudent(student); setProfileTab('peribadi'); }} title="Lihat Profil Lengkap"><UserRoundSearch size={16} /></button>
                               <button className={styles.actionBtn} style={{ color: '#059669', borderColor: '#a7f3d0', background: '#ecfdf5' }} onClick={() => setSelectedAttendanceStudent(student)} title="Lihat Rekod Kehadiran"><CalendarClock size={16} /></button>
                               <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => setSelectedHistoryStudent(student)} title="Lihat Rekod Sejarah Hafazan"><History size={16} /></button>
                               <button className={styles.actionBtn} onClick={() => setSelectedReportCardStudent(student)} title="Cetak Report Card"><Printer size={16} /></button>
@@ -506,7 +547,8 @@ export default function KehadiranLaporanPage() {
         {/* MODAL 1: PROFIL PELAJAR */}
         {selectedProfileStudent && (
           <div className={styles.modalOverlay} onClick={() => setSelectedProfileStudent(null)}>
-            <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={`${styles.modalContent} ${styles.modalContentLarge}`} onClick={e => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+              
               <div className={styles.modalHeader}>
                 <div className={styles.modalProfile}>
                   <img src={selectedProfileStudent.image} alt="Profile" className={styles.modalAvatar} />
@@ -517,14 +559,103 @@ export default function KehadiranLaporanPage() {
                 </div>
                 <button className={styles.closeBtn} onClick={() => setSelectedProfileStudent(null)}><X size={20} /></button>
               </div>
+              
               <div className={styles.modalBody}>
-                <div className={styles.profileGrid}>
-                  <div className={styles.profileInfoBox}><p className={styles.profileInfoLabel}><Phone size={12} /> Telefon Pelajar</p><p className={styles.profileInfoValue}>{selectedProfileStudent.phone}</p></div>
-                  <div className={styles.profileInfoBox}><p className={styles.profileInfoLabel}><User size={12} /> Nama Penjaga</p><p className={styles.profileInfoValue}>{selectedProfileStudent.guardian}</p></div>
-                  <div className={styles.profileInfoBox}><p className={styles.profileInfoLabel}><Phone size={12} /> Telefon Penjaga</p><p className={styles.profileInfoValue}>{selectedProfileStudent.guardianPhone}</p></div>
-                  <div className={styles.profileInfoBox}><p className={styles.profileInfoLabel}><Calendar size={12} /> Tarikh Mendaftar</p><p className={styles.profileInfoValue}>{selectedProfileStudent.joinedDate}</p></div>
+                {/* TAB MAKLUMAT PROFIL */}
+                <div style={{ display: 'flex', gap: '1.5rem', borderBottom: '1px solid #e2e8f0', marginBottom: '1.5rem', overflowX: 'auto' }}>
+                  <button 
+                    onClick={() => setProfileTab('peribadi')} 
+                    style={{ background: 'none', border: 'none', borderBottom: profileTab === 'peribadi' ? '2px solid #0f172a' : '2px solid transparent', padding: '0.5rem 0', fontWeight: 700, color: profileTab === 'peribadi' ? '#0f172a' : '#64748b', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                    Maklumat Peribadi
+                  </button>
+                  <button 
+                    onClick={() => setProfileTab('hafazan')} 
+                    style={{ background: 'none', border: 'none', borderBottom: profileTab === 'hafazan' ? '2px solid #0f172a' : '2px solid transparent', padding: '0.5rem 0', fontWeight: 700, color: profileTab === 'hafazan' ? '#0f172a' : '#64748b', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                    Maklumat Hafazan
+                  </button>
+                  <button 
+                    onClick={() => setProfileTab('kesihatan')} 
+                    style={{ background: 'none', border: 'none', borderBottom: profileTab === 'kesihatan' ? '2px solid #0f172a' : '2px solid transparent', padding: '0.5rem 0', fontWeight: 700, color: profileTab === 'kesihatan' ? '#0f172a' : '#64748b', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                    Maklumat Kesihatan
+                  </button>
+                  <button 
+                    onClick={() => setProfileTab('waris')} 
+                    style={{ background: 'none', border: 'none', borderBottom: profileTab === 'waris' ? '2px solid #0f172a' : '2px solid transparent', padding: '0.5rem 0', fontWeight: 700, color: profileTab === 'waris' ? '#0f172a' : '#64748b', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                    Bapa / Penjaga
+                  </button>
                 </div>
-                <div className={styles.statusSection}><p className={styles.statusLabel}>Pencapaian Semasa</p><p className={styles.statusValue}>{selectedProfileStudent.currentProgress}</p></div>
+
+                {/* KANDUNGAN MAKLUMAT PERIBADI */}
+                {profileTab === 'peribadi' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
+                    <InfoItem icon={<User size={14}/>} label="No. MyKad/Pasport" value={selectedProfileStudent.matrik} />
+                    <InfoItem icon={<Calendar size={14}/>} label="Tarikh Lahir" value={selectedProfileStudent.dob} />
+                    <InfoItem icon={<Users size={14}/>} label="Jantina" value={selectedProfileStudent.gender} />
+                    <InfoItem icon={<MapPin size={14}/>} label="Tempat Lahir" value={selectedProfileStudent.pob} />
+                    <InfoItem icon={<MapPin size={14}/>} label="Negeri Kelahiran" value={selectedProfileStudent.state_of_birth} />
+                    <InfoItem icon={<MapPin size={14}/>} label="Negara Kelahiran" value={selectedProfileStudent.country_of_birth} />
+                    <InfoItem icon={<User size={14}/>} label="Kewarganegaraan" value={selectedProfileStudent.nationality} />
+                    <InfoItem icon={<Users size={14}/>} label="Bangsa" value={selectedProfileStudent.race} />
+                    <InfoItem icon={<ShieldCheck size={14}/>} label="Status Kewarganegaraan" value={selectedProfileStudent.citizenship_status} />
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <InfoItem icon={<MapPin size={14}/>} label="Alamat Tempat Tinggal" value={`${selectedProfileStudent.address || ''}, ${selectedProfileStudent.postcode || ''} ${selectedProfileStudent.city || ''}, ${selectedProfileStudent.state || ''}`} />
+                    </div>
+                    <InfoItem icon={<Phone size={14}/>} label="Nombor Telefon" value={selectedProfileStudent.phone} />
+                    <InfoItem icon={<Mail size={14}/>} label="E-mel" value={selectedProfileStudent.email} />
+                  </div>
+                )}
+                
+                {/* KANDUNGAN MAKLUMAT HAFAZAN */}
+                {profileTab === 'hafazan' && (
+                  <div>
+                    <div className={styles.statusSection} style={{ marginBottom: '1.5rem' }}>
+                      <p className={styles.statusLabel}>Pencapaian Semasa</p>
+                      <p className={styles.statusValue}>{selectedProfileStudent.currentProgress}</p>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                        <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, margin: '0 0 0.5rem 0' }}>Jumlah Juzuk Dihafaz</p>
+                        <p style={{ fontSize: '1.5rem', color: '#0f172a', fontWeight: 800, margin: 0 }}>{selectedProfileStudent.totalJuzuk} <span style={{fontSize:'0.9rem', color:'#64748b'}}>Juzuk</span></p>
+                      </div>
+                      <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                        <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, margin: '0 0 0.5rem 0' }}>Purata Muka Surat</p>
+                        <p style={{ fontSize: '1.5rem', color: '#0f172a', fontWeight: 800, margin: 0 }}>{selectedProfileStudent.totalPages} <span style={{fontSize:'0.9rem', color:'#64748b'}}>M/S</span></p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* KANDUNGAN MAKLUMAT KESIHATAN */}
+                {profileTab === 'kesihatan' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                    <InfoItem icon={<Activity size={14}/>} label="Keadaan Kesihatan Umum" value={selectedProfileStudent.health_status} />
+                    <InfoItem icon={<AlertTriangle size={14}/>} label="Alahan yang Diketahui" value={selectedProfileStudent.allergies} />
+                    <InfoItem icon={<UserCheck size={14}/>} label="Keperluan Pemakanan Khas" value={selectedProfileStudent.dietary_needs} />
+                    <InfoItem icon={<BookOpenCheck size={14}/>} label="Keperluan Bantuan Pembelajaran" value={selectedProfileStudent.learning_aids} />
+                    <InfoItem icon={<ShieldAlert size={14}/>} label="Ubat Kecemasan" value={selectedProfileStudent.emergency_meds} />
+                  </div>
+                )}
+
+                {/* KANDUNGAN MAKLUMAT WARIS */}
+                {profileTab === 'waris' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
+                    <InfoItem icon={<User size={14}/>} label="Nama Penuh" value={selectedProfileStudent.parent_name} />
+                    <InfoItem icon={<User size={14}/>} label="No. MyKad/Pasport" value={selectedProfileStudent.parent_ic} />
+                    <InfoItem icon={<Users size={14}/>} label="Hubungan dengan pelajar" value={selectedProfileStudent.parent_relation} />
+                    <InfoItem icon={<Calendar size={14}/>} label="Tarikh Lahir" value={selectedProfileStudent.parent_dob} />
+                    <InfoItem icon={<User size={14}/>} label="Kewarganegaraan" value={selectedProfileStudent.parent_nationality} />
+                    <InfoItem icon={<Briefcase size={14}/>} label="Pekerjaan" value={selectedProfileStudent.parent_occupation} />
+                    <InfoItem icon={<Briefcase size={14}/>} label="Jawatan" value={selectedProfileStudent.parent_job_title} />
+                    <InfoItem icon={<Briefcase size={14}/>} label="Nama majikan/organisasi" value={selectedProfileStudent.parent_employer} />
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <InfoItem icon={<MapPin size={14}/>} label="Alamat tempat kerja" value={selectedProfileStudent.parent_work_address} />
+                    </div>
+                    <InfoItem icon={<Phone size={14}/>} label="No. telefon" value={selectedProfileStudent.parent_phone} />
+                    <InfoItem icon={<Phone size={14}/>} label="No. telefon pejabat" value={selectedProfileStudent.parent_office_phone} />
+                    <InfoItem icon={<Mail size={14}/>} label="E-mel" value={selectedProfileStudent.parent_email} />
+                    <InfoItem icon={<CreditCard size={14}/>} label="Pendapatan bulanan" value={selectedProfileStudent.parent_income} />
+                  </div>
+                )}
               </div>
               <div className={styles.modalFooter}>
                 <button className={styles.actionBtn} onClick={() => setSelectedProfileStudent(null)}>Tutup</button>
@@ -802,3 +933,14 @@ export default function KehadiranLaporanPage() {
     </DashboardGuruLayout>
   );
 }
+
+const InfoItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | undefined }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.75rem', border: '1px solid #f1f5f9', borderRadius: '8px', background: '#fafafa' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
+      {icon} <span>{label}</span>
+    </div>
+    <div style={{ color: '#0f172a', fontSize: '0.9rem', fontWeight: 700, paddingLeft: '1.5rem', whiteSpace: 'pre-wrap' }}>
+      {value && value !== '-' ? value : '-'}
+    </div>
+  </div>
+);
